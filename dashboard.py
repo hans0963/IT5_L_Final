@@ -1,0 +1,151 @@
+"""
+Main Dashboard GUI module
+"""
+import tkinter as tk
+from tkinter import messagebox
+
+class DashboardWindow:
+    def __init__(self, root, user_data, login_root):
+        self.root = root
+        self.user_data = user_data
+        self.login_root = login_root
+        
+        self.root.title("Library Management System - Dashboard")
+        self.root.geometry("1200x700")
+        self.root.resizable(True, True)
+        
+        # Handle window close
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+        self.show_dashboard()
+    
+    def clear_frame(self):
+        """Clear all widgets from the frame"""
+        for widget in self.root.winfo_children():
+            widget.destroy()
+    
+    def on_closing(self):
+        """Handle window closing"""
+        self.root.destroy()
+        self.login_root.destroy()
+    
+    def show_dashboard(self):
+        """Display main dashboard"""
+        self.clear_frame()
+        
+        # Main container
+        main_container = tk.Frame(self.root, bg='#ecf0f1')
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Top bar
+        top_bar = tk.Frame(main_container, bg='#2c3e50', height=80)
+        top_bar.pack(fill=tk.X)
+        top_bar.pack_propagate(False)
+        
+        # Welcome message
+        welcome_label = tk.Label(
+            top_bar,
+            text=f"Welcome, {self.user_data['first_name']} {self.user_data['last_name']}!",
+            font=('Arial', 16, 'bold'),
+            bg='#2c3e50',
+            fg='white'
+        )
+        welcome_label.pack(side=tk.LEFT, padx=30, pady=20)
+        
+        # Logout button
+        logout_btn = tk.Button(
+            top_bar,
+            text="Logout",
+            font=('Arial', 11, 'bold'),
+            bg='#e74c3c',
+            fg='white',
+            cursor='hand2',
+            width=10,
+            command=self.logout
+        )
+        logout_btn.pack(side=tk.RIGHT, padx=30, pady=20)
+        
+        # Dashboard content
+        content_frame = tk.Frame(main_container, bg='#ecf0f1')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=50, pady=30)
+        
+        # Title
+        title_label = tk.Label(
+            content_frame,
+            text="Library Management Dashboard",
+            font=('Arial', 20, 'bold'),
+            bg='#ecf0f1',
+            fg='#2c3e50'
+        )
+        title_label.pack(pady=20)
+        
+        # Button grid frame
+        button_grid = tk.Frame(content_frame, bg='#ecf0f1')
+        button_grid.pack(expand=True)
+        
+        # Define dashboard buttons
+        buttons = [
+            ("Students", self.show_student_management, '#3498db'),
+            ("Books", self.show_book_management, '#9b59b6'),  # <-- Fixed here
+            ("Borrow", self.show_borrow_management, '#e67e22'),
+            ("Return", self.show_return_management, '#1abc9c'),
+            ("Reservations", self.show_reservations, '#34495e'),
+            ("Fines", self.show_fines_management, '#c0392b')
+        ]
+        
+        # Create buttons in grid
+        row = 0
+        col = 0
+        for text, command, color in buttons:
+            btn = tk.Button(
+                button_grid,
+                text=text,
+                font=('Arial', 14, 'bold'),
+                bg=color,
+                fg='white',
+                cursor='hand2',
+                width=15,
+                height=3,
+                command=command
+            )
+            btn.grid(row=row, column=col, padx=15, pady=15)
+            
+            col += 1
+            if col > 2:
+                col = 0
+                row += 1
+    
+    def logout(self):
+        """Handle logout"""
+        self.root.destroy()
+        self.login_root.deiconify()
+    
+    def show_student_management(self):
+        """Open student management window"""
+        from students import StudentManagementWindow
+        self.root.withdraw()
+        student_root = tk.Toplevel(self.root)
+        StudentManagementWindow(student_root, self.user_data, self.root)
+    
+    def show_book_management(self):
+        """Open books management window"""
+        from books import BookmanagementWindow
+        self.root.withdraw()
+        books_root = tk.Toplevel(self.root)
+        BookmanagementWindow(books_root, self.user_data, self.root)
+    
+    def show_borrow_management(self):
+        """Display borrow management page"""
+        messagebox.showinfo("Coming Soon", "Borrow Management - Under Development")
+    
+    def show_return_management(self):
+        """Display return management page"""
+        messagebox.showinfo("Coming Soon", "Return Management - Under Development")
+    
+    def show_reservations(self):
+        """Display reservations page"""
+        messagebox.showinfo("Coming Soon", "Reservations - Under Development")
+    
+    def show_fines_management(self):
+        """Display fines management page"""
+        messagebox.showinfo("Coming Soon", "Fines Management - Under Development")
