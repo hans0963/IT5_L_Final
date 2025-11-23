@@ -135,8 +135,11 @@ class DashboardWindow:
         BookmanagementWindow(books_root, self.user_data, self.root)
     
     def show_borrow_management(self):
-        """Display borrow management page"""
-        messagebox.showinfo("Coming Soon", "Borrow Management - Under Development")
+        """Open borrow management window"""
+        from borrow import BorrowManagementWindow
+        self.root.withdraw()
+        books_root = tk.Toplevel(self.root)
+        BorrowManagementWindow(books_root, self.user_data, self.root)
     
     def show_return_management(self):
         """Display return management page"""

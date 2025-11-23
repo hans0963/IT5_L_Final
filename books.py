@@ -173,7 +173,7 @@ class BookmanagementWindow:
         # Treeview
         self.tree = ttk.Treeview(
             table_frame,
-            columns = ('book_id', 'isbn', 'title', 'author', 'publisher', 'publication_year', 'category', 'location', 'status', 'date_added', 'created_at'),
+            columns = ('book_id', 'isbn', 'title', 'author', 'publisher', 'publication_year', 'category', 'location', 'quantity', 'status', 'date_added', 'created_at'),
             height = 20,
             yscrollcommand = vsb.set,
             xscrollcommand = hsb.set
@@ -192,6 +192,7 @@ class BookmanagementWindow:
         self.tree.column('publication_year', anchor = tk.W, width = 50)
         self.tree.column('category', anchor = tk.W, width = 100)
         self.tree.column('location', anchor = tk.W, width = 100)
+        self.tree.column('quantity', anchor = tk.W, width = 80)
         self.tree.column('status', anchor = tk.W, width = 80)
         self.tree.column('date_added', anchor = tk.W, width = 120)
         self.tree.column('created_at', anchor = tk.W, width = 150)
@@ -206,6 +207,7 @@ class BookmanagementWindow:
         self.tree.heading('publication_year', text = 'Publication Year', anchor = tk.W)
         self.tree.heading('category', text = 'Category', anchor = tk.W)
         self.tree.heading('location', text = 'Location', anchor = tk.W)
+        self.tree.heading('quantity', text = 'Quantity', anchor = tk.W)
         self.tree.heading('status', text = 'Status', anchor = tk.W)
         self.tree.heading('date_added', text = 'Date Added', anchor = tk.W)
         self.tree.heading('created_at', text = 'Created At', anchor = tk.W)
@@ -256,6 +258,7 @@ class BookmanagementWindow:
                         books['publication_year'],
                         books['category'],
                         books['location'],
+                        books['quantity'],
                         books['status'],
                         books['date_added'],
                         books['created_at']
@@ -301,6 +304,7 @@ class BookmanagementWindow:
                         books['publication_year'],
                         books['category'],
                         books['location'],
+                        books['quantity'],
                         books['status'],
                         books['date_added'],
                         books['created_at']
@@ -362,18 +366,23 @@ class BookmanagementWindow:
         location_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
         location_entry.grid(row = 13, column = 0, pady = (0, 20))
 
+        # Quantity
+        tk.Label(form_frame, text="Quantity:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 14, column = 0, sticky = 'w', pady = 5)
+        quantity_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
+        quantity_entry.grid(row = 13, column = 0, pady = (0, 20))
+
         # Status
-        tk.Label(form_frame, text="Status:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 14, column = 0, sticky = 'w', pady = 5)
+        tk.Label(form_frame, text="Status:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 16, column = 0, sticky = 'w', pady = 5)
         status_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
         status_entry.grid(row = 15, column = 0, pady = (0, 20))
 
         # Date_Added
-        tk.Label(form_frame, text="Date Added (YYYY-MM-DD):", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 16, column = 0, sticky = 'w', pady = 5)
+        tk.Label(form_frame, text="Date Added (YYYY-MM-DD):", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 18, column = 0, sticky = 'w', pady = 5)
         date_added_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
         date_added_entry.grid(row = 17, column = 0, pady = (0, 20))
 
         # Created_At
-        tk.Label(form_frame, text="Created At (YYYY-MM-DD):", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 18, column = 0, sticky = 'w', pady = 5)
+        tk.Label(form_frame, text="Created At (YYYY-MM-DD):", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 20, column = 0, sticky = 'w', pady = 5)
         created_at_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
         created_at_entry.grid(row = 19, column = 0, pady = (0, 20))
 
@@ -385,20 +394,21 @@ class BookmanagementWindow:
             publication_year = publication_year_entry.get().strip()
             category = category_entry.get().strip()
             location = location_entry.get().strip()
+            quantity = quantity_entry.get().strip()
             status = status_entry.get().strip()
             date_added = date_added_entry.get().strip()
             created_at = created_at_entry.get().strip()
 
-            if not all([isbn, title, author, publisher, publication_year, category, location, status, date_added, created_at]):
+            if not all([isbn, title, author, publisher, publication_year, category, location, quantity, status, date_added, created_at]):
                 messagebox.showwarning("Input Error", "Please fill in all fields.")
                 return
             
             from datetime import date
             query = """
-                INSERT INTO book (isbn, title, author, publisher, publication_year, category, location, status, date_added, created_at)
+                INSERT INTO book (isbn, title, author, publisher, publication_year, category, location, quantity, status, date_added, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-            params = (isbn, title, author, publisher, publication_year, category, location, status, date_added, created_at)
+            params = (isbn, title, author, publisher, publication_year, category, location, quantity, status, date_added, created_at)
             
             if db.execute_query(query, params):
                 messagebox.showinfo("Success", "New book added successfully.")
