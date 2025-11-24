@@ -431,12 +431,118 @@ class BookmanagementWindow:
 
     def edit_book(self):
         """ Edit Selected Book """
-        selected = self.tree.focus()
+        selected = self.tree.selection()
         if not selected:
             messagebox.showwarning("Selection Error", "Please select a book to edit.")
             return
-        
-        messagebox.showinfo("Info", "Edit Book - Under Development")
+
+        # Get current book data
+        item = self.tree.item(selected[0])
+        book_id, isbn, title, author, publisher, year, category, location, quantity, status, date_added, created_at = item["values"]
+
+        # Dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Edit Book (ID: {book_id})")
+        dialog.geometry("400x500")
+        dialog.resizable(False, False)
+        dialog.configure(bg='#ecf0f1')
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # SCROLL SYSTEM GOES HERE (copy this block)
+        canvas = tk.Canvas(dialog, bg='#ecf0f1', highlightthickness=0)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        scrollbar = ttk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        form_frame = tk.Frame(canvas, bg='#ecf0f1', padx=30, pady=20)
+        form_frame.pack(fill=tk.BOTH, expand=True)
+        canvas_window = canvas.create_window((0, 0), window=form_frame, anchor="nw")
+
+        def configure_scroll(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        form_frame.bind("<Configure>", configure_scroll)
+
+        def mouse_scroll(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", mouse_scroll)
+
+        # Field builder function
+        def field(label, value, row):
+            tk.Label(form_frame, text=label, bg='#ecf0f1').grid(row=row, column=0, sticky="w", pady=5)
+            entry = ttk.Entry(form_frame, width=30)
+            entry.insert(0, value)
+            entry.grid(row=row+1, column=0, pady=(0, 10))
+            return entry
+
+        # Create input fields
+        isbn_entry = field("ISBN:", isbn, 0)
+        title_entry = field("Title:", title, 2)
+        author_entry = field("Author:", author, 4)
+        publisher_entry = field("Publisher:", publisher, 6)
+        year_entry = field("Publication Year:", year, 8)
+        category_entry = field("Category:", category, 10)
+        location_entry = field("Location:", location, 12)
+        quantity_entry = field("Quantity:", quantity, 14)
+        status_entry = field("Status:", status, 16)
+
+        def update_book():
+            new_isbn = isbn_entry.get().strip()
+            new_title = title_entry.get().strip()
+            new_author = author_entry.get().strip()
+            new_publisher = publisher_entry.get().strip()
+            new_year = year_entry.get().strip()
+            new_category = category_entry.get().strip()
+            new_location = location_entry.get().strip()
+            new_quantity = quantity_entry.get().strip()
+            new_status = status_entry.get().strip()
+
+            if not all([new_isbn, new_title, new_author, new_publisher, new_year, new_category, new_location, new_quantity, new_status]):
+                messagebox.showwarning("Validation Error", "All fields must be filled.")
+                return
+
+            # Validate numeric fields
+            if not new_year.isdigit() or len(new_year) != 4:
+                messagebox.showerror("Invalid Year", "Publication year must be a valid 4-digit year.")
+                return
+            
+            if not new_quantity.isdigit():
+                messagebox.showerror("Invalid Quantity", "Quantity must be a numeric value.")
+                return
+
+            query = """
+                UPDATE book SET
+                    isbn=%s, title=%s, author=%s, publisher=%s, publication_year=%s,
+                    category=%s, location=%s, quantity=%s, status=%s
+                WHERE book_id=%s
+            """
+
+            values = (
+                new_isbn, new_title, new_author, new_publisher, new_year, new_category, 
+                new_location, new_quantity, new_status, book_id
+            )
+
+            if db.execute_query(query, values, fetch=False):
+                messagebox.showinfo("Success", "Book updated successfully!")
+                dialog.destroy()
+                self.load_books()
+            else:
+                messagebox.showerror("Error", "Failed to update book.")
+
+        # Buttons
+        btn_frame = tk.Frame(form_frame, bg='#ecf0f1')
+        btn_frame.grid(row=20, column=0, pady=20)
+
+        save_btn = tk.Button(btn_frame, text="Update", bg='#27ae60', fg='white', width=10, command=update_book)
+        save_btn.pack(side=tk.LEFT, padx=5)
+
+        cancel_btn = tk.Button(btn_frame, text="Cancel", bg='#e74c3c', fg='white', width=10, command=dialog.destroy)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
 
     def delete_book(self):
         """ Delete Selected Book """

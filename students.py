@@ -370,22 +370,100 @@ class StudentManagementWindow:
         cancel_btn.pack(side=tk.LEFT, padx=5)
     
     def edit_student(self):
-        """Edit selected student"""
+        """ Edit selected student """
         selected = self.tree.selection()
         if not selected:
             messagebox.showwarning("Warning", "Please select a student to edit")
             return
         
-        messagebox.showinfo("Info", "Edit Student feature - Coming soon!")
-    
+        # Get student data
+        item = self.tree.item(selected[0])
+        student_id, first_name, last_name, email, phone, reg_date = item["values"]
+
+        # Create dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Edit Student (ID: {student_id})")
+        dialog.geometry("400x390")
+        dialog.resizable(False, False)
+        dialog.configure(bg='#ecf0f1')
+
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # Form frame
+        form_frame = tk.Frame(dialog, bg='#ecf0f1', padx=30, pady=20)
+        form_frame.pack(fill=tk.BOTH, expand=True, padx=10)
+        form_frame.grid_columnconfigure(0, weight=1)
+
+        # Input fields
+        tk.Label(form_frame, text="First Name:", bg='#ecf0f1', font=('Arial', 10)).grid(row=0, column=0, sticky='w', pady=5)
+        first_name_entry = ttk.Entry(form_frame, font=('Arial', 10), width=30)
+        first_name_entry.insert(0, first_name)
+        first_name_entry.grid(row=1, column=0, pady=(0, 10))
+
+        tk.Label(form_frame, text="Last Name:", bg='#ecf0f1', font=('Arial', 10)).grid(row=2, column=0, sticky='w', pady=5)
+        last_name_entry = ttk.Entry(form_frame, font=('Arial', 10), width=30)
+        last_name_entry.insert(0, last_name)
+        last_name_entry.grid(row=3, column=0, pady=(0, 10))
+
+        tk.Label(form_frame, text="Email:", bg='#ecf0f1', font=('Arial', 10)).grid(row=4, column=0, sticky='w', pady=5)
+        email_entry = ttk.Entry(form_frame, font=('Arial', 10), width=30)
+        email_entry.insert(0, email)
+        email_entry.grid(row=5, column=0, pady=(0, 10))
+
+        tk.Label(form_frame, text="Phone:", bg='#ecf0f1', font=('Arial', 10)).grid(row=6, column=0, sticky='w', pady=5)
+        phone_entry = ttk.Entry(form_frame, font=('Arial', 10), width=30)
+        if phone != "N/A":
+            phone_entry.insert(0, phone)
+        phone_entry.grid(row=7, column=0, pady=(0, 20))
+
+        
+        def update_student():
+            updated_first = first_name_entry.get().strip()
+            updated_last = last_name_entry.get().strip()
+            updated_email = email_entry.get().strip()
+            updated_phone = phone_entry.get().strip()
+
+            if not all([updated_first, updated_last, updated_email]):
+                messagebox.showwarning("Input Error", "Please fill in all required fields")
+                return
+
+            # Update record
+            query = """
+                UPDATE student
+                SET first_name=%s, last_name=%s, email=%s, phone=%s
+                WHERE student_id=%s
+                """
+            values = (updated_first, updated_last, updated_email, updated_phone if updated_phone else None, student_id)
+
+            if db.execute_query(query, values, fetch=False):
+                messagebox.showinfo("Success", "Student updated successfully!")
+                dialog.destroy()
+                self.load_students()
+            else:
+                messagebox.showerror("Error", "Failed to update student")
+
+        # Buttons
+        btn_frame = tk.Frame(form_frame, bg='#ecf0f1')
+        btn_frame.grid(row=8, column=0, pady=20, sticky="w")
+
+        save_btn = tk.Button(btn_frame, text="Update", font=('Arial', 10, 'bold'), bg='#27ae60', fg='white',
+                    cursor='hand2', width=10, command=update_student)
+        save_btn.pack(side=tk.LEFT, padx=5)
+
+        cancel_btn = tk.Button(btn_frame, text="Cancel", font=('Arial', 10), bg='#95a5a6', fg='white',
+                    cursor='hand2', width=10, command=dialog.destroy)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+
+
     def delete_student(self):
         """Delete selected student"""
         selected = self.tree.selection()
         if not selected:
             messagebox.showwarning("Warning", "Please select a student to delete")
             return
-        
-        # Get student data
+            
+            # Get student data
         item = self.tree.item(selected[0])
         student_id = item['values'][0]
         student_name = f"{item['values'][1]} {item['values'][2]}"
@@ -403,3 +481,5 @@ class StudentManagementWindow:
                 self.load_students()
             else:
                 messagebox.showerror("Error", "Failed to delete student")
+
+    
