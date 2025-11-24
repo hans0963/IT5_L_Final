@@ -3,6 +3,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from database import db
+from validators import validate_book_fields
 
 class BookmanagementWindow:
     def __init__(self, root, user_data, dashboard_root):
@@ -399,8 +400,21 @@ class BookmanagementWindow:
             date_added = date_added_entry.get().strip()
             created_at = created_at_entry.get().strip()
 
-            if not all([isbn, title, author, publisher, publication_year, category, location, quantity, status, date_added, created_at]):
-                messagebox.showwarning("Input Error", "Please fill in all fields.")
+             # Validate required
+            if not all([isbn, title, author, publication_year, category, quantity]):
+                messagebox.showwarning("Input Error", "Required fields cannot be empty.")
+                return
+
+            # Book validation (regex + logic)
+            is_valid, error_message = validate_book_fields(title, author, isbn, publication_year)
+
+            if not is_valid:
+                messagebox.showerror("Validation Error", error_message)
+                return
+
+            # Additional manual validation only if needed:
+            if not quantity.isdigit():
+                messagebox.showerror("Invalid Input", "Quantity must be a number.")
                 return
             
             from datetime import date

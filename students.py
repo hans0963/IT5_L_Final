@@ -4,6 +4,7 @@ Student Management GUI module
 import tkinter as tk
 from tkinter import ttk, messagebox
 from database import db
+from validators import validate_student_fields
 
 class StudentManagementWindow:
     def __init__(self, root, user_data, dashboard_root):
@@ -339,10 +340,13 @@ class StudentManagementWindow:
             email = email_entry.get().strip()
             phone = phone_entry.get().strip()
             
-            if not all([first_name, last_name, email]):
-                messagebox.showwarning("Input Error", "Please fill in all required fields")
+            # ---- VALIDATION ----
+            is_valid, error_message = validate_student_fields(first_name, last_name, email, phone)
+
+            if not is_valid:
+                messagebox.showerror("Validation Error", error_message)
                 return
-            
+
             from datetime import date
             query = """
                 INSERT INTO student (first_name, last_name, email, phone, registration_date)

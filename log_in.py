@@ -6,6 +6,8 @@ from tkinter import ttk, messagebox
 import hashlib
 from datetime import date
 from database import db
+from validators import validate_email, validate_username, validate_password
+from tkinter import END
 
 class LoginWindow:
     def __init__(self, root):
@@ -127,31 +129,40 @@ class LoginWindow:
         
         # Bind Enter key to login
         self.password_entry.bind('<Return>', lambda e: self.login())
-    
+
     def login(self):
         """Handle login authentication"""
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
-        
+
         if not username or not password:
             messagebox.showwarning("Input Error", "Please enter both username and password")
+            self.clear_login_fields()
             return
-        
+
         hashed_password = self.hash_password(password)
-        
+
         query = "SELECT * FROM librarian WHERE username = %s AND password = %s"
         result = db.execute_query_one(query, (username, hashed_password))
-        
+
         if result:
             messagebox.showinfo(
-                "Login Successful", 
+                "Login Successful",
                 f"Welcome, {result['first_name']} {result['last_name']}!"
             )
-            # Open dashboard
+            self.clear_login_fields()
             self.open_dashboard(result)
         else:
             messagebox.showerror("Login Failed", "Invalid username or password")
-    
+            self.clear_login_fields()
+
+
+    def clear_login_fields(self):
+        """Reset login input fields"""
+        self.username_entry.delete(0, END)
+        self.password_entry.delete(0, END)
+        self.username_entry.focus()
+
     def open_dashboard(self, user_data):
         """Open the dashboard window"""
         from dashboard import DashboardWindow
@@ -255,12 +266,28 @@ class LoginWindow:
             messagebox.showwarning("Input Error", "Please fill in all fields")
             return
         
+        # Email validation
+        if not validate_email(email):
+            messagebox.showerror("Invalid Email", "Please enter a valid email address.")
+            return
+        
+        # Username rule
+        if not validate_username(username):
+            messagebox.showerror(
+                "Invalid Username",
+                "Username must be 4-30 characters and contain only letters, numbers, and underscores."
+            )
+            return
+            
+        # Password match
         if password != confirm_password:
             messagebox.showerror("Password Error", "Passwords do not match")
             return
-        
-        if len(password) < 6:
-            messagebox.showwarning("Password Error", "Password must be at least 6 characters")
+
+        # Strong password validation
+        is_valid, msg = validate_password(password)
+        if not is_valid:
+            messagebox.showerror("Weak Password", msg)
             return
         
         try:
