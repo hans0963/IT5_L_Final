@@ -124,6 +124,7 @@ class DashboardWindow:
         """Open student management window"""
         from students import StudentManagementWindow
         self.root.withdraw()
+
         student_root = tk.Toplevel(self.root)
         StudentManagementWindow(student_root, self.user_data, self.root)
     
@@ -131,23 +132,30 @@ class DashboardWindow:
         """Open books management window"""
         from books import BookmanagementWindow
         self.root.withdraw()
+
         books_root = tk.Toplevel(self.root)
         BookmanagementWindow(books_root, self.user_data, self.root)
     
+    
     def show_borrow_management(self):
-        """Display return management page"""
-        messagebox.showinfo("Coming Soon", "Borrow Management - Under Development")
-
-        """Open borrow management window
-        from borrow import BorrowManagementWindow
+        from borrow import BorrowWindow
         self.root.withdraw()
-        books_root = tk.Toplevel(self.root)
-        BorrowManagementWindow(books_root, self.user_data, self.root) """
+
+        borrow_root = tk.Toplevel(self.root)
+        BorrowWindow(
+            borrow_root,
+            librarian_data=self.user_data,
+            dashboard_root=self.root
+        )
+        borrow_root.protocol("WM_DELETE_WINDOW", self.root.deiconify)
     
     def show_return_management(self):
-        """Display return management page"""
-        messagebox.showinfo("Coming Soon", "Return Management - Under Development")
-    
+        from return_book import ReturnWindow
+        self.root.withdraw()
+
+        return_root = tk.Toplevel(self.root)
+        ReturnWindow(return_root, self.user_data, dashboard_root=self.root)
+        
     def show_reservations(self):
         """Display reservations page"""
         messagebox.showinfo("Coming Soon", "Reservations - Under Development")

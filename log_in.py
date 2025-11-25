@@ -156,7 +156,6 @@ class LoginWindow:
             messagebox.showerror("Login Failed", "Invalid username or password")
             self.clear_login_fields()
 
-
     def clear_login_fields(self):
         """Reset login input fields"""
         self.username_entry.delete(0, END)
