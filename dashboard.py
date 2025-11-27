@@ -157,9 +157,27 @@ class DashboardWindow:
         ReturnWindow(return_root, self.user_data, dashboard_root=self.root)
         
     def show_reservations(self):
-        """Display reservations page"""
-        messagebox.showinfo("Coming Soon", "Reservations - Under Development")
-    
+        from reservations import ReservationWindow
+        self.root.withdraw()  # hide dashboard
+
+        reservation_root = tk.Toplevel(self.root)
+        ReservationWindow(
+            reservation_root,
+            self.user_data,
+            self.root
+        )
+
+        reservation_root.protocol("WM_DELETE_WINDOW", lambda: [reservation_root.destroy(), self.root.deiconify()])
+
     def show_fines_management(self):
-        """Display fines management page"""
-        messagebox.showinfo("Coming Soon", "Fines Management - Under Development")
+        from fine import FineManagementWindow
+        self.root.withdraw()  # hide dashboard
+
+        fines_root = tk.Toplevel(self.root)
+        FineManagementWindow(
+            fines_root,
+            self.user_data,
+            self.root
+        )
+
+        fines_root.protocol("WM_DELETE_WINDOW", lambda: [fines_root.destroy(), self.root.deiconify()])
