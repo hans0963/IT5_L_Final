@@ -1,149 +1,181 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import date
 from database import db
 
 
 class FineManagementWindow:
-    def __init__(self, root, user_data, dashboard_root):
-        self.root = root
+    def __init__(self, master, user_data=None, dashboard_root=None):
+        self.master = master
+        self.master.title("Fine Management")
+        self.master.geometry("1100x500")
+
         self.user_data = user_data
         self.dashboard_root = dashboard_root
 
-        self.root.title("Fine Management")
-        self.root.geometry("1200x700")
-        self.root.resizable(True, True)
+        # ===== HEADER =====
+        header = tk.Frame(master, bg="#2c3e50", height=50)
+        header.pack(fill="x")
 
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        tk.Button(header, text="← Back", bg="#34495e", fg="white",
+                  command=self.go_back).pack(side="left", padx=10, pady=10)
 
-        self.build_ui()
+        tk.Label(header, text="Fine Management", fg="white",
+                 bg="#2c3e50", font=("Arial", 15, "bold")).pack(side="left", padx=20)
+
+        tk.Label(header, text=f"Logged in as: {self.user_data['first_name']} {self.user_data['last_name']}",
+                 fg="white", bg="#2c3e50").pack(side="right", padx=10)
+
+        # ===== CONTROLS =====
+        controls = tk.Frame(master, pady=10)
+        controls.pack(fill="x")
+
+        tk.Label(controls, text="Search:").pack(side="left", padx=10)
+        self.search_var = tk.StringVar()
+        tk.Entry(controls, textvariable=self.search_var, width=40).pack(side="left")
+
+        tk.Button(controls, text="Search", bg="#3498db", fg="white",
+                  command=self.search_records).pack(side="left", padx=5)
+
+        tk.Button(controls, text="Refresh", bg="#1abc9c", fg="white",
+                  command=self.load_fines).pack(side="right", padx=10)
+
+        # ===== TABLE =====
+        self.tree = ttk.Treeview(master,
+                                 columns=("id", "student", "book", "amount", "payment_status", "calculated_date"),
+                                 show="headings", height=18)
+
+        self.tree.pack(fill="both", expand=True, padx=10, pady=5)
+
+        headers = ["Fine ID", "Student", "Book", "Amount", "Status", "Issued On"]
+        for col, text in zip(self.tree["columns"], headers):
+            self.tree.heading(col, text=text)
+            self.tree.column(col, anchor="center", width=150 if col != "id" else 70)
+
+        self.tree.tag_configure("unpaid", foreground="red")
+
+        # ===== BOTTOM BUTTONS =====
+        bottom = tk.Frame(master, pady=10)
+        bottom.pack()
+
+        tk.Button(bottom, text="Mark as Paid", bg="#27ae60", fg="white",
+                  width=18, command=self.mark_paid).pack(side="left", padx=10)
+
+        tk.Button(bottom, text="Waive Fine", bg="#e67e22", fg="white",
+                  width=18, command=self.waive_fine).pack(side="left", padx=10)
+
+        tk.Button(bottom, text="Delete Fine", bg="#c0392b", fg="white",
+                  width=18, command=self.delete_fine).pack(side="left", padx=10)
+
         self.load_fines()
 
-    # ===== Navigation =====
-    def on_close(self):
-        self.go_back()
-
-    def go_back(self):
-        self.root.destroy()
-        self.dashboard_root.deiconify()
-
-    def clear(self):
-        for widget in self.root.winfo_children():
-            widget.destroy()
-
-    # ===== UI Layout =====
-    def build_ui(self):
-        self.clear()
-
-        main_frame = tk.Frame(self.root, bg="#ecf0f1")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
-        nav = tk.Frame(main_frame, bg="#2c3e50", height=60)
-        nav.pack(fill=tk.X)
-
-        tk.Button(nav, text="← Back", bg="#34495e", fg="white",
-                  command=self.go_back).pack(side=tk.LEFT, padx=10, pady=10)
-
-        tk.Label(nav, text="Fine Management",
-                 bg="#2c3e50", fg="white", font=("Arial", 16, "bold")).pack(side=tk.LEFT, padx=20)
-
-        content = tk.Frame(main_frame, bg="#ecf0f1", padx=15, pady=15)
-        content.pack(fill=tk.BOTH, expand=True)
-
-        tk.Button(content, text="Refresh", bg="#95a5a6", fg="white",
-                  width=15, command=self.load_fines).pack(side=tk.LEFT, padx=5)
-
-        # Table
-        table_frame = tk.Frame(content, bg="white")
-        table_frame.pack(fill=tk.BOTH, expand=True)
-
-        self.tree = ttk.Treeview(
-            table_frame,
-            columns=("ID", "Student", "Book", "Amount", "Status", "Calc Date", "Paid Date"),
-            show="headings", height=20
-        )
-
-        headers = ["Fine ID", "Student", "Book Title", "Amount",
-                   "Payment Status", "Date Charged", "Date Paid"]
-
-        for col, name in zip(self.tree["columns"], headers):
-            self.tree.heading(col, text=name)
-
-        self.tree.pack(fill=tk.BOTH, expand=True)
-
-        # Action buttons area
-        action_frame = tk.Frame(content, bg="#ecf0f1")
-        action_frame.pack(fill=tk.X, pady=10)
-
-        tk.Button(action_frame, text="Mark as Paid", bg="#27ae60", fg="white",
-                  width=18, command=self.pay_fine).pack(side=tk.LEFT, padx=5)
-
-        tk.Button(action_frame, text="Waive Fine", bg="#e74c3c", fg="white",
-                  width=18, command=self.waive_fine).pack(side=tk.LEFT, padx=5)
-
-    # ===== Load fines =====
+    # ---------------- LOAD DATA ----------------
     def load_fines(self):
         self.tree.delete(*self.tree.get_children())
 
         query = """
-            SELECT f.fine_id, CONCAT(s.first_name, ' ', s.last_name) AS student_name,
-                   b.title, f.fine_amount, f.payment_status, f.calculated_date, f.paid_date
+            SELECT f.fine_id,
+                   CONCAT(s.first_name,' ',s.last_name) AS student,
+                   b.title AS book,
+                   f.fine_amount,
+                   f.payment_status,
+                   f.calculated_date
             FROM fine f
-            JOIN borrow_transaction t ON f.transaction_id = t.transaction_id
-            JOIN student s ON t.student_id = s.student_id
-            JOIN book b ON t.book_id = b.book_id
-            ORDER BY f.fine_id DESC
+            JOIN borrow_transaction bt ON f.transaction_id = bt.transaction_id
+            JOIN student s ON bt.student_id = s.student_id
+            JOIN book b ON bt.book_id = b.book_id
         """
 
         rows = db.execute_query(query)
+        for r in rows:
+            tag = "unpaid" if r["payment_status"] == "Unpaid" else ""
+            self.tree.insert("", "end", values=(
+                r["fine_id"], r["student"], r["book"],
+                f"₱{r['fine_amount']:.2f}", r["payment_status"], r["calculated_date"]
+            ), tags=(tag,))
 
-        if rows:
-            for row in rows:
-                self.tree.insert("", tk.END, values=(
-                    row["fine_id"],
-                    row["student_name"],
-                    row["title"],
-                    f"₱{row['fine_amount']:.2f}",
-                    row["payment_status"],
-                    row["calculated_date"],
-                    row["paid_date"] if row["paid_date"] else "—"
-                ))
+    # ---------------- SEARCH ----------------
+    def search_records(self):
+        keyword = self.search_var.get().lower()
 
-    # ===== Payment Action =====
-    def pay_fine(self):
-        selected = self.tree.selection()
+        if not keyword:
+            self.load_fines()
+            return
+
+        self.tree.delete(*self.tree.get_children())
+
+        query = """
+            SELECT f.fine_id,
+                   CONCAT(s.first_name,' ',s.last_name) AS student,
+                   b.title AS book,
+                   f.fine_amount,
+                   f.payment_status,
+                   f.calculated_date
+            FROM fine f
+            JOIN borrow_transaction bt ON f.transaction_id = bt.transaction_id
+            JOIN student s ON bt.student_id = s.student_id
+            JOIN book b ON bt.book_id = b.book_id
+            WHERE s.first_name LIKE %s OR s.last_name LIKE %s OR b.title LIKE %s
+        """
+
+        key = f"%{keyword}%"
+        results = db.execute_query(query, (key, key, key))
+
+        for r in results:
+            tag = "unpaid" if r["payment_status"] == "Unpaid" else ""
+            self.tree.insert("", "end", values=(
+                r["fine_id"], r["student"], r["book"],
+                f"₱{r['fine_amount']:.2f}", r["payment_status"], r["calculated_date"]
+            ), tags=(tag,))
+
+    # ---------------- ACTIONS ----------------
+    def mark_paid(self):
+        selected = self.get_selected()
         if not selected:
-            return messagebox.showwarning("No Selection", "Select a fine record first.")
+            return
 
-        fine_id = self.tree.item(selected[0])["values"][0]
+        fine_id = selected[0]
 
-        if messagebox.askyesno("Confirm Payment", "Mark this fine as PAID?"):
-            today = date.today()
-            query = """
-                UPDATE fine
-                SET payment_status='Paid', paid_date=%s
-                WHERE fine_id=%s
-            """
+        db.execute_query("UPDATE fine SET payment_status='Paid', paid_date=CURDATE() WHERE fine_id=%s",
+                         (fine_id,))
+        messagebox.showinfo("Updated", "Fine marked as paid.")
+        self.load_fines()
 
-            if db.execute_query(query, (today, fine_id), fetch=False):
-                messagebox.showinfo("Success", "Fine marked as PAID.")
-                self.load_fines()
-
-    # ===== Waive Action =====
     def waive_fine(self):
+        selected = self.get_selected()
+        if not selected:
+            return
+
+        fine_id = selected[0]
+        if not messagebox.askyesno("Confirm", "Are you sure you want to waive this fine?"):
+            return
+
+        db.execute_query("UPDATE fine SET payment_status='Waived' WHERE fine_id=%s", (fine_id,))
+        messagebox.showinfo("Updated", "Fine has been waived.")
+        self.load_fines()
+
+    def delete_fine(self):
+        selected = self.get_selected()
+        if not selected:
+            return
+
+        fine_id = selected[0]
+        if not messagebox.askyesno("Confirm", "Are you sure you want to permanently delete this fine?"):
+            return
+
+        db.execute_query("DELETE FROM fine WHERE fine_id=%s", (fine_id,))
+        messagebox.showinfo("Deleted", "Fine removed successfully.")
+        self.load_fines()
+
+    # ---------------- HELPERS ----------------
+    def get_selected(self):
         selected = self.tree.selection()
         if not selected:
-            return messagebox.showwarning("No Selection", "Select a fine first.")
+            messagebox.showwarning("No Selection", "Please select a fine first.")
+            return None
 
-        fine_id = self.tree.item(selected[0])["values"][0]
+        return self.tree.item(selected)["values"]
 
-        if messagebox.askyesno("Confirm", "Waive this fine? This cannot be undone."):
-            query = """
-                UPDATE fine
-                SET payment_status='Waived', paid_date=NULL
-                WHERE fine_id=%s
-            """
-
-            if db.execute_query(query, (fine_id,), fetch=False):
-                messagebox.showinfo("Success", "Fine successfully waived.")
-                self.load_fines()
+    def go_back(self):
+        self.master.destroy()
+        if self.dashboard_root:
+            self.dashboard_root.deiconify()

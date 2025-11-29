@@ -1,9 +1,13 @@
-""" Books management GUI module """
+"""
+Books management GUI module
+"""
 
 import tkinter as tk
 from tkinter import ttk, messagebox
 from database import db
 from validators import validate_book_fields
+from datetime import date
+
 
 class BookmanagementWindow:
     def __init__(self, root, user_data, dashboard_root):
@@ -13,573 +17,233 @@ class BookmanagementWindow:
         
         self.root.title("Book Management")
         self.root.geometry("1200x700")
-        self.root.resizable(True, True)
 
-        # Stayl Configuration
-        style = ttk.Style()
-        style.theme_use("clam")
+        ttk.Style().theme_use("clam")
 
-        # Window Closer
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
         self.show_book_management()
 
+    # --------------------------------------------
+    # NAVIGATION / UTILITIES
+    # --------------------------------------------
+
     def clear_frame(self):
-        """ Clear all widgets from the frame """
         for widget in self.root.winfo_children():
             widget.destroy()
 
     def on_closing(self):
-        """ Handle window closing """
         self.go_back()
 
     def go_back(self):
-        """ Return to Dashboard """
         self.root.destroy()
         self.dashboard_root.deiconify()
+
+    # --------------------------------------------
+    # MAIN MANAGEMENT SCREEN
+    # --------------------------------------------
 
     def show_book_management(self):
         self.clear_frame()
 
-        # Main Frame
-        main_frame = tk.Frame(self.root, bg= '#ecf0f1')
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main = tk.Frame(self.root, bg="#ecf0f1")
+        main.pack(fill=tk.BOTH, expand=True)
 
-        # Top Navigation Bar
-        nav_frame = tk.Frame(main_frame, bg='#2c3e50', height=60)
-        nav_frame.pack(fill=tk.X)
-        nav_frame.pack_propagate(False)
+        # ---- NAV BAR ----
+        nav = tk.Frame(main, bg="#2c3e50", height=60)
+        nav.pack(fill=tk.X)
 
-        # Back button
-        back_button = tk.Button(
-            nav_frame,
-            text ="← Back to Dashboard",
-            bg = '#34495e',
-            fg ='white',
-            cursor ='hand2',
-            command = self.go_back
-        )
-        back_button.pack(side=tk.LEFT, padx=20, pady=15)
+        tk.Button(nav, text="← Back to Dashboard", bg="#34495e", fg="white",
+                  command=self.go_back).pack(side=tk.LEFT, padx=20, pady=12)
 
-        # Title
-        title_label = tk.Label(
-            nav_frame,
-            text = "Book Management",
-            bg = '#2c3e50',
-            fg = 'white',
-        )
-        title_label.pack(side=tk.LEFT, padx=20)
+        tk.Label(nav, text="📚 Book Management", font=("Arial", 14, "bold"),
+                 bg="#2c3e50", fg="white").pack(side=tk.LEFT, padx=20)
 
-        # User info
-        user_label = tk.Label(
-            nav_frame,
-            text = f"Logged in as: {self.user_data['first_name']} {self.user_data['last_name']}",
-            font = ('Arial', 10),
-            bg = '#2c3e50',
-            fg = 'white'
-        )
-        user_label.pack(side=tk.RIGHT, padx=20)
+        tk.Label(nav, text=f"Logged in as: {self.user_data['first_name']} {self.user_data['last_name']}",
+                 bg="#2c3e50", fg="white").pack(side=tk.RIGHT, padx=20)
 
-        # Content Frame
-        content_frame = tk.Frame(main_frame, bg='#ecf0f1', padx = 20, pady = 20)
-        content_frame.pack(fill=tk.BOTH, expand=True)
+        # ---- CONTENT ----
+        content = tk.Frame(main, bg="#ecf0f1", padx=20, pady=20)
+        content.pack(fill=tk.BOTH, expand=True)
 
-        # Button Frame
-        button_frame = tk.Frame(content_frame, bg='#ecf0f1')
-        button_frame.pack(fill=tk.X, pady=10)
+        # ACTION BUTTONS
+        actions = tk.Frame(content, bg="#ecf0f1")
+        actions.pack(fill=tk.X, pady=10)
 
-        add_btn = tk.Button(
-            button_frame,
-            text = "Add Book",
-            bg = '#27ae60',
-            fg = 'white',
-            cursor = 'hand2',
-            width = 15,
-            command = self.add_book_dialog
-        )
-        add_btn.pack(side=tk.LEFT, padx=5)
+        tk.Button(actions, text="Add Book", width=15, bg="#27ae60", fg="white",
+                  command=self.add_book_dialog).pack(side=tk.LEFT, padx=5)
 
-        edit_btn = tk.Button(
-            button_frame,
-            text = "Edit Book",
-            font = ('Arial', 10, 'bold'),
-            bg = '#f39c12',
-            fg = 'white',
-            cursor = 'hand2',
-            width = 15,
-            command = self.edit_book
-        )
-        edit_btn.pack(side=tk.LEFT, padx=5)
+        tk.Button(actions, text="Edit Book", width=15, bg="#f39c12", fg="white",
+                  command=self.edit_book).pack(side=tk.LEFT, padx=5)
 
-        delete_btn = tk.Button(
-            button_frame,
-            text = "Delete Book",
-            font = ('Arial', 10, 'bold'),
-            bg = '#e74c3c',
-            fg = 'white',
-            cursor = 'hand2',
-            width = 15,
-            command = self.delete_book
-        )
-        delete_btn.pack(side=tk.LEFT, padx=10)
+        tk.Button(actions, text="Delete Book", width=15, bg="#e74c3c", fg="white",
+                  command=self.delete_book).pack(side=tk.LEFT, padx=5)
 
-        refresh_btn = tk.Button(
-            button_frame,
-            text = "Refresh List",
-            font = ('Arial', 10, 'bold'),
-            bg = '#3498db',
-            fg = 'white',
-            cursor = 'hand2',
-            width = 15,
-            command = self.load_books
-        )
-        refresh_btn.pack(side=tk.LEFT, padx=5)
+        tk.Button(actions, text="Refresh", width=15, bg="#3498db", fg="white",
+                  command=self.load_books).pack(side=tk.LEFT, padx=5)
 
-        # Search Frame
-        search_frame = tk.Frame(content_frame, bg='#ecf0f1')
-        search_frame.pack(fill=tk.X, pady=10)
+        # SEARCH BAR
+        search = tk.Frame(content, bg="#ecf0f1")
+        search.pack(fill=tk.X, pady=10)
 
-        tk.Label(
-            search_frame,
-            text = "Search:",
-            font = ('Arial', 10),
-            bg = '#ecf0f1'
-        ).pack(side=tk.LEFT, padx=5)
-
-        self.search_entry = ttk.Entry(search_frame, font = ('Arial', 10), width = 30)
+        tk.Label(search, text="Search:", bg="#ecf0f1").pack(side=tk.LEFT, padx=5)
+        self.search_entry = ttk.Entry(search, width=30)
         self.search_entry.pack(side=tk.LEFT, padx=5)
 
-        search_btn = tk.Button(
-            search_frame,
-            text = "Search",
-            font = ('Arial', 10),
-            bg = '#95a5a6',
-            fg = 'white',
-            cursor = 'hand2',
-            command = self.search_books
-        )
-        search_btn.pack(side=tk.LEFT, padx=5)
+        tk.Button(search, text="Search", bg="#95a5a6", fg="white",
+                  command=self.search_books).pack(side=tk.LEFT)
 
-        # Table Frame
-        table_frame = tk.Frame(content_frame, bg = 'white')
-        table_frame.pack(fill = tk.BOTH, expand = True, pady = 10)
+        # TABLE
+        table_frame = tk.Frame(content)
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
-        # Scrollbars
-        vsb = ttk.Scrollbar(table_frame, orient = tk.VERTICAL)
-        vsb.pack(side = tk.RIGHT, fill = tk.Y)
-
-        hsb = ttk.Scrollbar(table_frame, orient = tk.HORIZONTAL)
-        hsb.pack(side = tk.BOTTOM, fill = tk.X)
-
-        # Treeview
         self.tree = ttk.Treeview(
             table_frame,
-            columns = ('book_id', 'isbn', 'title', 'author', 'publisher', 'publication_year', 'category', 'location', 'quantity', 'status', 'date_added', 'created_at'),
-            height = 20,
-            yscrollcommand = vsb.set,
-            xscrollcommand = hsb.set
+            columns=("isbn", "title", "author", "publisher", "year", "category",
+                     "location", "qty", "status", "added", "created"),
+            show="headings"
         )
+        self.tree.pack(fill=tk.BOTH, expand=True)
 
-        vsb.config(command = self.tree.yview)
-        hsb.config(command = self.tree.xview)
+        headers = ["ISBN", "Title", "Author", "Publisher", "Year",
+                   "Category", "Location", "Qty", "Status", "Added", "Created"]
+        for col, text in zip(self.tree["columns"], headers):
+            self.tree.heading(col, text=text)
+            self.tree.column(col, width=120)
 
-        # Define Columns
-        self.tree.column('#0', width = 0, stretch = tk.NO)
-        self.tree.column('book_id', anchor = tk.CENTER, width = 50)
-        self.tree.column('isbn', anchor = tk.W, width = 100)
-        self.tree.column('title', anchor = tk.W, width = 100)
-        self.tree.column('author', anchor = tk.W, width = 150)
-        self.tree.column('publisher', anchor = tk.W, width = 120)
-        self.tree.column('publication_year', anchor = tk.W, width = 50)
-        self.tree.column('category', anchor = tk.W, width = 100)
-        self.tree.column('location', anchor = tk.W, width = 100)
-        self.tree.column('quantity', anchor = tk.W, width = 80)
-        self.tree.column('status', anchor = tk.W, width = 80)
-        self.tree.column('date_added', anchor = tk.W, width = 120)
-        self.tree.column('created_at', anchor = tk.W, width = 150)
+        self.status_label = tk.Label(content, text="Ready", bg="#ecf0f1")
+        self.status_label.pack(fill=tk.X)
 
-        # Define Headings
-        self.tree.heading('#0', text = '', anchor = tk.W)
-        self.tree.heading('book_id', text = 'ID', anchor = tk.CENTER)
-        self.tree.heading('isbn', text = 'ISBN', anchor = tk.W)
-        self.tree.heading('title', text = 'Title', anchor = tk.W)
-        self.tree.heading('author', text = 'Author', anchor = tk.W)
-        self.tree.heading('publisher', text = 'Publisher', anchor = tk.W)
-        self.tree.heading('publication_year', text = 'Publication Year', anchor = tk.W)
-        self.tree.heading('category', text = 'Category', anchor = tk.W)
-        self.tree.heading('location', text = 'Location', anchor = tk.W)
-        self.tree.heading('quantity', text = 'Quantity', anchor = tk.W)
-        self.tree.heading('status', text = 'Status', anchor = tk.W)
-        self.tree.heading('date_added', text = 'Date Added', anchor = tk.W)
-        self.tree.heading('created_at', text = 'Created At', anchor = tk.W)
-
-        # Add alternating row colors
-        self.tree.tag_configure('oddrow', background = '#f0f0f0')
-        self.tree.tag_configure('evenrow', background = 'white')
-        self.tree.pack(fill = tk.BOTH, expand = True)
-
-        # Status bar
-        status_frame = tk.Frame(content_frame, bg = '#ecf0f1')
-        status_frame.pack(fill = tk.X, pady = 5)
-
-        self.status_label = tk.Label(
-            status_frame,
-            text = "Ready",
-            font = ('Arial', 9),
-            bg = '#ecf0f1',
-            fg = '#7f8c8d',
-            anchor = tk.W
-        )
-        self.status_label.pack(fill = tk.X, padx = 5)
-
-        # Load books data
         self.load_books()
 
+    # --------------------------------------------
+    # DATABASE ACTIONS
+    # --------------------------------------------
+
     def load_books(self):
-        """ Load books from database """
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        self.tree.delete(*self.tree.get_children())
+        rows = db.execute_query("SELECT * FROM book ORDER BY book_id DESC")
 
-        query = "SELECT * FROM book ORDER BY book_id DESC"
-        books = db.execute_query(query)
+        if rows:
+            for row in rows:
+                self.tree.insert("", tk.END, iid=row["book_id"], values=(
+                    row["isbn"], row["title"], row["author"], row["publisher"], row["publication_year"],
+                    row["category"], row["location"], row["quantity"], row["status"],
+                    row["date_added"], row["created_at"]
+                ))
 
-        if books:
-            for idx, books in enumerate(books):
-                tag = 'evenrow' if idx % 2 == 0 else 'oddrow'
-                self.tree.insert(
-                    '',
-                    tk.END,
-                    values = (
-                        books['book_id'],
-                        books['isbn'],
-                        books['title'],
-                        books['author'],
-                        books['publisher'],
-                        books['publication_year'],
-                        books['category'],
-                        books['location'],
-                        books['quantity'],
-                        books['status'],
-                        books['date_added'],
-                        books['created_at']
-                    ),
-                    tags = (tag,)
-                )
-            self.status_label.config(text = f"Loaded {len(books)} books.")
+            self.status_label.config(text=f"Loaded {len(rows)} book(s).")
         else:
-            self.status_label.config(text = "No books found.")
-    
+            self.status_label.config(text="⚠ No books found.")
+
     def search_books(self):
-        """ Search books based on input """
-        search_term = self.search_entry.get().strip()
-        
-        if not search_term:
-            messagebox.showwarning("Input Error", "Please enter a search term.")
-            return
+        keyword = self.search_entry.get().strip()
+        if not keyword:
+            return messagebox.showwarning("Missing Input", "Please enter a search term.")
 
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        self.tree.delete(*self.tree.get_children())
 
-        query = """
-        SELECT * FROM book
-        WHERE title LIKE %s OR author LIKE %s OR isbn LIKE %s
-        ORDER BY book_id DESC
-        """
-        like_term = f"%{search_term}%"
-        books = db.execute_query(query, (like_term, like_term, like_term))
+        like = f"%{keyword}%"
+        query = """SELECT * FROM book WHERE title LIKE %s OR author LIKE %s OR isbn LIKE %s"""
 
-        if books:
-            for idx, books in enumerate(books):
-                tag = 'evenrow' if idx % 2 == 0 else 'oddrow'
-                self.tree.insert(
-                    '',
-                    tk.END,
-                    values = (
-                        books['book_id'],
-                        books['isbn'],
-                        books['title'],
-                        books['author'],
-                        books['publisher'],
-                        books['publication_year'],
-                        books['category'],
-                        books['location'],
-                        books['quantity'],
-                        books['status'],
-                        books['date_added'],
-                        books['created_at']
-                    ),
-                    tags = (tag,)
-                )
-            self.status_label.config(text = f"Found {len(books)} matching books.")
+        rows = db.execute_query(query, (like, like, like))
+
+        if rows:
+            for row in rows:
+                self.tree.insert("", tk.END, values=(
+                    row["isbn"], row["title"], row["author"], row["publisher"], row["publication_year"],
+                    row["category"], row["location"], row["quantity"], row["status"],
+                    row["date_added"], row["created_at"]
+                ))
+
+            self.status_label.config(text=f"🔍 Found {len(rows)} result(s).")
         else:
-            self.status_label.config(text = "No matching books found.")
+            self.status_label.config(text="❌ No results.")
+
+    # --------------------------------------------
+    # ADD / EDIT / DELETE
+    # --------------------------------------------
 
     def add_book_dialog(self):
-        """ Open dialog to add a new book """
-        dialog = tk.Toplevel(self.root)
-        dialog.title("Add New Book")
-        dialog.geometry("400x350")   
-        dialog.resizable(False, False)
-        dialog.configure(bg='#ecf0f1')
-
-        # Center the dialog
-        dialog.transient(self.root)
-        dialog.grab_set()
-
-        # Form frame
-        form_frame = tk.Frame(dialog, bg='#ecf0f1', padx=30, pady=20) 
-        form_frame.pack(fill=tk.BOTH, expand=True)
-
-        # ISBN
-        tk.Label(form_frame, text="ISBN:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 0, column = 0, sticky = 'w', pady = 5)
-        isbn_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        isbn_entry.grid(row = 1, column = 0, pady = (0, 10))
-
-        # Title
-        tk.Label(form_frame, text="Title:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 2, column = 0, sticky = 'w', pady = 5)
-        title_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        title_entry.grid(row = 3, column = 0, pady = (0, 10))
-
-        # Author
-        tk.Label(form_frame, text="Author:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 4, column = 0, sticky = 'w', pady = 5)
-        author_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        author_entry.grid(row = 5, column = 0, pady = (0, 10))
-
-        # Publisher
-        tk.Label(form_frame, text="Publisher:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 6, column = 0, sticky = 'w', pady = 5)
-        publisher_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        publisher_entry.grid(row = 7, column = 0, pady = (0, 20))
-
-        # Publication_Year
-        tk.Label(form_frame, text="Publication Year:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 8, column = 0, sticky = 'w', pady = 5)
-        publication_year_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        publication_year_entry.grid(row = 9, column = 0, pady = (0, 10))
-
-        # Category
-        tk.Label(form_frame, text="Category:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 10, column = 0, sticky = 'w', pady = 5)
-        category_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        category_entry.grid(row = 11, column = 0, pady = (0, 20))
-
-        # Location
-        tk.Label(form_frame, text="Location:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 12, column = 0, sticky = 'w', pady = 5)
-        location_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        location_entry.grid(row = 13, column = 0, pady = (0, 20))
-
-        # Quantity
-        tk.Label(form_frame, text="Quantity:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 14, column = 0, sticky = 'w', pady = 5)
-        quantity_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        quantity_entry.grid(row = 13, column = 0, pady = (0, 20))
-
-        # Status
-        tk.Label(form_frame, text="Status:", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 16, column = 0, sticky = 'w', pady = 5)
-        status_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        status_entry.grid(row = 15, column = 0, pady = (0, 20))
-
-        # Date_Added
-        tk.Label(form_frame, text="Date Added (YYYY-MM-DD):", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 18, column = 0, sticky = 'w', pady = 5)
-        date_added_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        date_added_entry.grid(row = 17, column = 0, pady = (0, 20))
-
-        # Created_At
-        tk.Label(form_frame, text="Created At (YYYY-MM-DD):", bg = '#ecf0f1', font = ('Arial', 10)).grid(row = 20, column = 0, sticky = 'w', pady = 5)
-        created_at_entry = ttk.Entry(form_frame, font=('Arial', 10), width = 30)
-        created_at_entry.grid(row = 19, column = 0, pady = (0, 20))
-
-        def save_book():
-            isbn = isbn_entry.get().strip()
-            title = title_entry.get().strip()
-            author = author_entry.get().strip()
-            publisher = publisher_entry.get().strip()
-            publication_year = publication_year_entry.get().strip()
-            category = category_entry.get().strip()
-            location = location_entry.get().strip()
-            quantity = quantity_entry.get().strip()
-            status = status_entry.get().strip()
-            date_added = date_added_entry.get().strip()
-            created_at = created_at_entry.get().strip()
-
-             # Validate required
-            if not all([isbn, title, author, publication_year, category, quantity]):
-                messagebox.showwarning("Input Error", "Required fields cannot be empty.")
-                return
-
-            # Book validation (regex + logic)
-            is_valid, error_message = validate_book_fields(title, author, isbn, publication_year)
-
-            if not is_valid:
-                messagebox.showerror("Validation Error", error_message)
-                return
-
-            # Additional manual validation only if needed:
-            if not quantity.isdigit():
-                messagebox.showerror("Invalid Input", "Quantity must be a number.")
-                return
-            
-            from datetime import date
-            query = """
-                INSERT INTO book (isbn, title, author, publisher, publication_year, category, location, quantity, status, date_added, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """
-            params = (isbn, title, author, publisher, publication_year, category, location, quantity, status, date_added, created_at)
-            
-            if db.execute_query(query, params):
-                messagebox.showinfo("Success", "New book added successfully.")
-                dialog.destroy()
-                self.load_books()
-            else:
-                messagebox.showerror("Error", "Failed to add new book.")
-        
-        # Buttons
-        button_frame = tk.Frame(form_frame, bg='#ecf0f1')
-        button_frame.grid(row=20, column=0, pady=10)
-
-        save_btn = tk.Button(button_frame, text = "Save", font = ('Arial', 10, 'bold'), bg = '#27ae60', fg = 'white',
-                             cursor = 'hand2', width = 10, command = save_book)
-        save_btn.pack(side = tk.LEFT, padx = 5)
-
-        cancel_btn = tk.Button(button_frame, text = "Cancel", font = ('Arial', 10, 'bold'), bg = '#e74c3c', fg = 'white',
-                                 cursor = 'hand2', width = 10, command = dialog.destroy)
-        cancel_btn.pack(side = tk.LEFT, padx = 5)
+        self.open_book_form(mode="add")
 
     def edit_book(self):
-        """ Edit Selected Book """
         selected = self.tree.selection()
         if not selected:
-            messagebox.showwarning("Selection Error", "Please select a book to edit.")
-            return
+            return messagebox.showwarning("No Selection", "Select a book to edit.")
 
-        # Get current book data
-        item = self.tree.item(selected[0])
-        book_id, isbn, title, author, publisher, year, category, location, quantity, status, date_added, created_at = item["values"]
+        values = self.tree.item(selected, "values")
+        book_id = selected[0]
+        self.open_book_form(mode="edit", book_id=book_id, values=values)
 
-        # Dialog window
+    def open_book_form(self, mode, book_id=None, values=None):
         dialog = tk.Toplevel(self.root)
-        dialog.title(f"Edit Book (ID: {book_id})")
-        dialog.geometry("400x500")
-        dialog.resizable(False, False)
-        dialog.configure(bg='#ecf0f1')
-        dialog.transient(self.root)
+        dialog.title("Add Book" if mode == "add" else "Edit Book")
+        dialog.geometry("400x570")
+        dialog.configure(bg="#ecf0f1")
         dialog.grab_set()
 
-        # SCROLL SYSTEM GOES HERE (copy this block)
-        canvas = tk.Canvas(dialog, bg='#ecf0f1', highlightthickness=0)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        form = tk.Frame(dialog, bg="#ecf0f1", padx=25, pady=20)
+        form.pack(fill=tk.BOTH, expand=True)
 
-        scrollbar = ttk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        form_frame = tk.Frame(canvas, bg='#ecf0f1', padx=30, pady=20)
-        form_frame.pack(fill=tk.BOTH, expand=True)
-        canvas_window = canvas.create_window((0, 0), window=form_frame, anchor="nw")
-
-        def configure_scroll(event=None):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-
-        form_frame.bind("<Configure>", configure_scroll)
-
-        def mouse_scroll(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
-        canvas.bind_all("<MouseWheel>", mouse_scroll)
-
-        # Field builder function
-        def field(label, value, row):
-            tk.Label(form_frame, text=label, bg='#ecf0f1').grid(row=row, column=0, sticky="w", pady=5)
-            entry = ttk.Entry(form_frame, width=30)
-            entry.insert(0, value)
-            entry.grid(row=row+1, column=0, pady=(0, 10))
+        def field(label, default=""):
+            tk.Label(form, text=label, bg="#ecf0f1").pack(anchor="w")
+            entry = ttk.Entry(form, width=33)
+            entry.insert(0, default)
+            entry.pack(pady=4)
             return entry
 
-        # Create input fields
-        isbn_entry = field("ISBN:", isbn, 0)
-        title_entry = field("Title:", title, 2)
-        author_entry = field("Author:", author, 4)
-        publisher_entry = field("Publisher:", publisher, 6)
-        year_entry = field("Publication Year:", year, 8)
-        category_entry = field("Category:", category, 10)
-        location_entry = field("Location:", location, 12)
-        quantity_entry = field("Quantity:", quantity, 14)
-        status_entry = field("Status:", status, 16)
+        isbn = field("ISBN", values[0] if values else "")
+        title = field("Title", values[1] if values else "")
+        author = field("Author", values[2] if values else "")
+        publisher = field("Publisher", values[3] if values else "")
+        year = field("Publication Year", values[4] if values else "")
+        category = field("Category", values[5] if values else "")
+        location = field("Location", values[6] if values else "")
+        qty = field("Quantity", values[7] if values else "")
 
-        def update_book():
-            new_isbn = isbn_entry.get().strip()
-            new_title = title_entry.get().strip()
-            new_author = author_entry.get().strip()
-            new_publisher = publisher_entry.get().strip()
-            new_year = year_entry.get().strip()
-            new_category = category_entry.get().strip()
-            new_location = location_entry.get().strip()
-            new_quantity = quantity_entry.get().strip()
-            new_status = status_entry.get().strip()
+        tk.Label(form, text="Status", bg="#ecf0f1").pack(anchor="w")
+        status = ttk.Combobox(form, width=30, values=["Available", "Unavailable"])
+        status.set(values[8] if values else "Available")
+        status.pack(pady=4)
 
-            if not all([new_isbn, new_title, new_author, new_publisher, new_year, new_category, new_location, new_quantity, new_status]):
-                messagebox.showwarning("Validation Error", "All fields must be filled.")
-                return
+        # ---- BUTTONS ----
+        button_frame = tk.Frame(dialog, bg="#ecf0f1")
+        button_frame.pack(pady=15)
 
-            # Validate numeric fields
-            if not new_year.isdigit() or len(new_year) != 4:
-                messagebox.showerror("Invalid Year", "Publication year must be a valid 4-digit year.")
-                return
-            
-            if not new_quantity.isdigit():
-                messagebox.showerror("Invalid Quantity", "Quantity must be a numeric value.")
-                return
+        def save():
+            if not qty.get().isdigit():
+                return messagebox.showwarning("Invalid Entry", "Quantity must be numeric.")
 
-            query = """
-                UPDATE book SET
-                    isbn=%s, title=%s, author=%s, publisher=%s, publication_year=%s,
-                    category=%s, location=%s, quantity=%s, status=%s
-                WHERE book_id=%s
-            """
-
-            values = (
-                new_isbn, new_title, new_author, new_publisher, new_year, new_category, 
-                new_location, new_quantity, new_status, book_id
-            )
-
-            if db.execute_query(query, values, fetch=False):
-                messagebox.showinfo("Success", "Book updated successfully!")
-                dialog.destroy()
-                self.load_books()
+            if mode == "add":
+                today = str(date.today())
+                query = """INSERT INTO book (isbn,title,author,publisher,publication_year,category,
+                           location,quantity,status,date_added,created_at)
+                           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+                params = (isbn.get(), title.get(), author.get(), publisher.get(), year.get(),
+                          category.get(), location.get(), qty.get(), status.get(), today, today)
             else:
-                messagebox.showerror("Error", "Failed to update book.")
+                query = """UPDATE book SET isbn=%s,title=%s,author=%s,publisher=%s,publication_year=%s,
+                           category=%s,location=%s,quantity=%s,status=%s WHERE book_id=%s"""
+                params = (isbn.get(), title.get(), author.get(), publisher.get(), year.get(),
+                          category.get(), location.get(), qty.get(), status.get(), book_id)
 
-        # Buttons
-        btn_frame = tk.Frame(form_frame, bg='#ecf0f1')
-        btn_frame.grid(row=20, column=0, pady=20)
+            db.execute_query(query, params)
+            dialog.destroy()
+            self.load_books()
+            messagebox.showinfo("Success", "Record saved successfully.")
 
-        save_btn = tk.Button(btn_frame, text="Update", bg='#27ae60', fg='white', width=10, command=update_book)
-        save_btn.pack(side=tk.LEFT, padx=5)
-
-        cancel_btn = tk.Button(btn_frame, text="Cancel", bg='#e74c3c', fg='white', width=10, command=dialog.destroy)
-        cancel_btn.pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Save", width=10, bg="#27ae60", fg="white", command=save).grid(row=0, column=0, padx=10)
+        tk.Button(button_frame, text="Cancel", width=10, bg="#e74c3c", fg="white",
+                  command=dialog.destroy).grid(row=0, column=1, padx=10)
 
     def delete_book(self):
-        """ Delete Selected Book """
         selected = self.tree.selection()
         if not selected:
-            messagebox.showwarning("Selection Error", "Please select a book to delete.")
-            return
-        
-        # Get book data
-        item = self.tree.item(selected[0])
-        book_id = item['values'][0]
-        student_name = f"{item['values'][1]} {item['values'][2]}"
+            return messagebox.showwarning("No Selection", "Select a book to delete.")
 
-        # Confirm deletion
-        confirm = messagebox.askyesno(
-            "Confirm Deletion",
-            f"Are you sure you want to delete the book: {student_name}'?\n\n This action cannot be undone."
-            )
-        
-        if confirm:
-            query = "DELETE FROM book WHERE book_id = %s"
-            if db.execute_query(query, (book_id), fetch = False):
-                messagebox.showinfo("Success", "Book deleted Successfully!")
-                self.load_books()
-            else:
-                messagebox.showerror("Error", "Failed to delete the book.")
+        title = self.tree.item(selected, "values")[1]
+
+        if messagebox.askyesno("Confirm Delete", f"Delete book '{title}'?"):
+            db.execute_query("DELETE FROM book WHERE book_id=%s", (selected[0],))
+            self.load_books()
+            messagebox.showinfo("Deleted", "Book removed successfully.")

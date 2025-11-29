@@ -3,94 +3,197 @@ from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
 from database import db
 
-class BorrowWindow:
-    def __init__(self, master, librarian_data, dashboard_root):
+
+class BorrowManagementWindow:
+    def __init__(self, master, user_data=None, dashboard_root=None):
         self.master = master
-        self.librarian_data = librarian_data
+        self.master.title("Borrow Management")
+        self.master.geometry("1150x550")
+
+        self.user_data = user_data
         self.dashboard_root = dashboard_root
 
-        master.title("Borrow Book")
-        master.geometry("550x350")
+        # ===== HEADER UI =====
+        header = tk.Frame(master, bg="#2c3e50", height=50)
+        header.pack(fill="x")
 
-        tk.Label(master, text="Borrow Book", font=("Arial", 18, "bold")).grid(row=0, columnspan=2, pady=10)
+        tk.Button(header, text="← Back", bg="#34495e", fg="white",
+                  command=self.go_back).pack(side="left", padx=10, pady=10)
 
-        # Student dropdown
-        tk.Label(master, text="Student:").grid(row=2, column=0, sticky="w", padx=10)
-        self.student_cb = ttk.Combobox(master, width=40)
-        self.student_cb.grid(row=2, column=1, padx=10, pady=5)
+        tk.Label(header, text="Borrow Management", fg="white",
+                 bg="#2c3e50", font=("Arial", 15, "bold")).pack(side="left", padx=20)
 
-        # Book dropdown
-        tk.Label(master, text="Book:").grid(row=3, column=0, sticky="w", padx=10)
-        self.book_cb = ttk.Combobox(master, width=40)
-        self.book_cb.grid(row=3, column=1, padx=10, pady=5)
+        tk.Label(header, text=f"Logged in as: {self.user_data['first_name']} {self.user_data['last_name']}",
+                 fg="white", bg="#2c3e50").pack(side="right", padx=10)
 
-        # Librarian (read only)
-        tk.Label(master, text="Librarian:").grid(row=4, column=0, sticky="w", padx=10)
-        self.librarian_label = tk.Label(master, text=f"{self.librarian_data['first_name']} {self.librarian_data['last_name']} (ID: {self.librarian_data['librarian_id']})")
-        self.librarian_label.grid(row=4, column=1, padx=10, pady=5, sticky="w")
+        # ===== CONTROLS (Buttons + Search) =====
+        control_frame = tk.Frame(master, pady=10)
+        control_frame.pack(fill="x")
 
-        # Borrow date
-        tk.Label(master, text="Borrow Date:").grid(row=5, column=0, sticky="w", padx=10)
-        self.borrow_date_entry = tk.Entry(master, width=20)
-        self.borrow_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
-        self.borrow_date_entry.grid(row=5, column=1, padx=10, pady=5)
+        tk.Button(control_frame, text="Add Borrow Record", bg="#27ae60", fg="white",
+                  command=self.borrow_dialog, width=18).pack(side="left", padx=5)
 
-        # Due date
-        tk.Label(master, text="Due Date:").grid(row=6, column=0, sticky="w", padx=10)
-        self.due_date_entry = tk.Entry(master, width=20)
-        self.due_date_entry.insert(0, (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"))
-        self.due_date_entry.grid(row=6, column=1, padx=10, pady=5)
+        # Search bar
+        tk.Label(control_frame, text="Search:", font=("Arial", 10)).pack(side="left", padx=10)
+        self.search_var = tk.StringVar()
+        tk.Entry(control_frame, textvariable=self.search_var, width=35).pack(side="left")
 
-        # Submit button
-        tk.Button(master, text="Submit Borrow Request",
-                  bg="#4CAF50", fg="white", width=25,
-                  command=self.submit_borrow).grid(row=7, columnspan=2, pady=15)
+        tk.Button(control_frame, text="Search", bg="#3498db", fg="white",
+                  command=self.search_records).pack(side="left", padx=8)
 
-        # Back button
-        tk.Button(master, text="⬅ Back to Dashboard", bg="#d9534f", fg="white",
-                  width=25, command=self.go_back).grid(row=8, columnspan=2, pady=5)
+        tk.Button(control_frame, text="Refresh", bg="#1abc9c", fg="white",
+                  command=self.load_records).pack(side="right", padx=10)
 
-        self.load_dropdowns()
+        # ===== TABLE UI =====
+        columns = ("id", "student", "book", "borrow", "due", "status")
+        self.tree = ttk.Treeview(master, columns=columns, show="headings", height=18)
+        self.tree.pack(fill="both", expand=True, padx=10, pady=5)
 
-    def load_dropdowns(self):
-        students = db.execute_query("SELECT student_id, first_name, last_name FROM student")
-        self.student_map = {f"{s['first_name']} {s['last_name']} (ID:{s['student_id']})": s['student_id'] for s in students}
-        self.student_cb['values'] = list(self.student_map.keys())
+        headers = ["ID", "Student", "Book", "Borrow Date", "Due Date", "Status"]
+        for col, text in zip(columns, headers):
+            self.tree.heading(col, text=text)
+            self.tree.column(col, width=150 if col != "id" else 60, anchor="center")
 
+        self.tree.tag_configure("overdue", foreground="red")
+
+        self.load_records()
+
+
+    # ======================= Borrow Dialog =======================
+    def borrow_dialog(self):
+        dialog = tk.Toplevel(self.master)
+        dialog.title("Borrow Book")
+        dialog.geometry("400x300")
+        dialog.configure(bg="#ecf0f1")
+        dialog.grab_set()
+
+        # Fetch Available Books Only
         books = db.execute_query("SELECT book_id, title FROM book WHERE quantity > 0")
-        self.book_map = {f"{b['title']} (ID:{b['book_id']})": b['book_id'] for b in books}
-        self.book_cb['values'] = list(self.book_map.keys())
-
-    def submit_borrow(self):
-        if not self.student_cb.get() or not self.book_cb.get():
-            messagebox.showerror("Input Error", "Please select both a student and a book.")
+        if not books:
+            messagebox.showwarning("Unavailable", "No books available for borrowing.")
+            dialog.destroy()
             return
 
-        student_id = self.student_map[self.student_cb.get()]
-        book_id = self.book_map[self.book_cb.get()]
-        librarian_id = self.librarian_data["librarian_id"]
-        borrow_date = self.borrow_date_entry.get()
-        due_date = self.due_date_entry.get()
+        students = db.execute_query("SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM student")
+
+        tk.Label(dialog, text="Select Student", bg="#ecf0f1", font=("Arial", 10, "bold")).pack(anchor="w", padx=20, pady=5)
+        cb_student = ttk.Combobox(dialog, values=[f"{s['student_id']} - {s['name']}" for s in students], width=35)
+        cb_student.pack(padx=20)
+
+        tk.Label(dialog, text="Select Book", bg="#ecf0f1", font=("Arial", 10, "bold")).pack(anchor="w", padx=20, pady=10)
+        cb_book = ttk.Combobox(dialog, values=[f"{b['book_id']} - {b['title']}" for b in books], width=35)
+        cb_book.pack(padx=20)
+
+        def save_borrow():
+            if not cb_student.get() or not cb_book.get():
+                messagebox.showwarning("Missing Entry", "All fields are required.")
+                return
+
+            student_id = cb_student.get().split(" - ")[0]
+            book_id = cb_book.get().split(" - ")[0]
+
+            borrow_date = datetime.now().date()
+            due_date = borrow_date + timedelta(days=7)
+
+            librarian_id = self.user_data.get("librarian_id") or self.user_data.get("id")
+
+            query = """
+                INSERT INTO borrow_transaction(student_id, book_id, librarian_id, borrow_date, due_date, status)
+                VALUES(%s, %s, %s, %s, %s, 'Active')
+            """
+
+            db.execute_query(query, (student_id, book_id, librarian_id, borrow_date, due_date))
+            db.execute_query("UPDATE book SET quantity = quantity - 1 WHERE book_id = %s", (book_id,))
+
+            messagebox.showinfo("Success", "Book Borrowed Successfully!")
+            dialog.destroy()
+            self.load_records()
+
+        tk.Button(dialog, text="Save", bg="#27ae60", fg="white", width=15,
+                  command=save_borrow).pack(pady=20)
+
+
+    # ======================= Load Table =======================
+    def load_records(self):
+        self.tree.delete(*self.tree.get_children())
 
         query = """
-            INSERT INTO borrow_transaction (book_id, student_id, librarian_id, borrow_date, due_date, status)
-            VALUES (%s, %s, %s, %s, %s, 'Active')
+            SELECT bt.transaction_id,
+                CONCAT(s.first_name, ' ', s.last_name) AS student,
+                b.title AS book,
+                bt.borrow_date,
+                bt.due_date,
+                bt.status
+            FROM borrow_transaction bt
+            JOIN student s ON bt.student_id = s.student_id
+            JOIN book b ON bt.book_id = b.book_id
+            ORDER BY bt.transaction_id DESC
         """
 
-        if db.execute_query(query, (book_id, student_id, librarian_id, borrow_date, due_date), fetch=False):
-            db.execute_query("UPDATE book SET quantity = quantity - 1 WHERE book_id = %s", (book_id,), fetch=False)
+        data = db.execute_query(query)
 
-            messagebox.showinfo("Success", "Borrow recorded successfully!")
+        for row in data:
 
-            # Close window and return to dashboard
-            self.go_back()
+            # -------- Fix Empty Status --------
+            status_value = (
+                row.get("status")
+                or row.get("borrow_status")
+                or "Active"
+            )
 
-        else:
-            messagebox.showerror("Error", "Failed to process borrow request.")
+            # -------- Auto mark overdue --------
+            if status_value == "Active" and row["due_date"] < datetime.now().date():
+                status_value = "Overdue"
+                db.execute_query(
+                    "UPDATE borrow_transaction SET status='Overdue' WHERE transaction_id=%s",
+                    (row["transaction_id"],)
+                )
 
+            tag = "overdue" if status_value == "Overdue" else ""
+
+            self.tree.insert(
+                "", "end",
+                values=(row["transaction_id"], row["student"], row["book"],
+                        row["borrow_date"], row["due_date"], status_value),
+                tags=(tag,)
+            )
+
+
+    # ======================= Search =======================
+    def search_records(self):
+        keyword = self.search_var.get().lower()
+        if not keyword:
+            self.load_records()
+            return
+
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+
+        query = """
+            SELECT bt.transaction_id, 
+                   CONCAT(s.first_name, ' ', s.last_name) AS student,
+                   b.title AS book, bt.borrow_date, bt.due_date, bt.status
+            FROM borrow_transaction bt
+            JOIN student s ON bt.student_id = s.student_id
+            JOIN book b ON bt.book_id = b.book_id
+            WHERE s.first_name LIKE %s OR s.last_name LIKE %s OR b.title LIKE %s
+        """
+
+        key = f"%{keyword}%"
+        results = db.execute_query(query, (key, key, key))
+
+        for row in results:
+            status_value = row.get("status") or "Active"
+            tag = "overdue" if status_value == "Overdue" else ""
+
+            self.tree.insert("", "end", values=(
+                row["transaction_id"], row["student"], row["book"],
+                row["borrow_date"], row["due_date"], status_value
+            ), tags=(tag,))
+
+
+    # ======================= Back Navigation =======================
     def go_back(self):
-        self.master.destroy() 
-        self.dashboard_root.deiconify()
-        messagebox.showinfo("Success", "Borrow recorded successfully!")
-    
-
+        self.master.destroy()
+        if self.dashboard_root:
+            self.dashboard_root.deiconify()

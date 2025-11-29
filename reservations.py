@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import date
+from datetime import datetime, timedelta, date
 from database import db
 
 
@@ -10,21 +10,18 @@ class ReservationWindow:
         self.user_data = user_data
         self.dashboard_root = dashboard_root
 
-        # Fix: user_data may use librarian_id instead of id
         self.librarian_id = user_data.get("librarian_id") or user_data.get("id")
 
         self.root.title("Book Reservations")
-        self.root.geometry("900x600")
-        self.root.resizable(True, True)
+        self.root.geometry("1000x600")
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         self.build_ui()
         self.load_reservations()
 
-    # ===== Navigation =====
+    # ---------------- Navigation ----------------
     def on_close(self):
-        """Return to dashboard when closing window."""
         self.go_back()
 
     def go_back(self):
@@ -35,76 +32,77 @@ class ReservationWindow:
         for widget in self.root.winfo_children():
             widget.destroy()
 
-    # ===== UI Layout =====
+    # ---------------- UI Layout ----------------
     def build_ui(self):
         self.clear()
 
-        main_frame = tk.Frame(self.root, bg="#ecf0f1")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main = tk.Frame(self.root, bg="#ecf0f1")
+        main.pack(fill=tk.BOTH, expand=True)
 
-        # Top navigation bar
-        nav = tk.Frame(main_frame, bg="#2c3e50", height=60)
-        nav.pack(fill=tk.X)
+        # Header
+        header = tk.Frame(main, bg="#2c3e50")
+        header.pack(fill=tk.X)
 
-        tk.Button(nav, text="← Back", bg="#34495e", fg="white",
+        tk.Button(header, text="← Back", bg="#34495e", fg="white",
                   command=self.go_back).pack(side=tk.LEFT, padx=10, pady=10)
 
-        tk.Label(
-            nav,
-            text="Reservation Management",
-            bg="#2c3e50",
-            fg="white",
-            font=("Arial", 16, "bold")
-        ).pack(side=tk.LEFT, padx=20)
+        tk.Label(header, text="Reservation Management",
+                 fg="white", bg="#2c3e50", font=("Arial", 16, "bold")).pack(side=tk.LEFT, padx=20)
+
+        tk.Label(header, text=f"Librarian: {self.user_data['first_name']} {self.user_data['last_name']}",
+                 fg="white", bg="#2c3e50").pack(side=tk.RIGHT, padx=10)
+
+        # Controls
+        control = tk.Frame(main, bg="#ecf0f1")
+        control.pack(fill=tk.X, pady=10)
+
+        tk.Button(control, text="➕ Create Reservation", bg="#27ae60", fg="white",
+                  width=18, command=self.create_reservation_dialog).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(control, text="🔄 Refresh", bg="#3498db", fg="white",
+                  width=12, command=self.load_reservations).pack(side=tk.LEFT, padx=5)
+
+        # Search
+        tk.Label(control, text="Search:", bg="#ecf0f1").pack(side=tk.LEFT, padx=10)
+        self.search_var = tk.StringVar()
+        tk.Entry(control, textvariable=self.search_var, width=40).pack(side=tk.LEFT)
+        tk.Button(control, text="Search", bg="#7f8c8d", fg="white",
+                  command=self.search).pack(side=tk.LEFT, padx=5)
+
+        # Table
+        self.tree = ttk.Treeview(main, columns=("id", "book", "student", "date", "expires", "status"),
+                                 show="headings", height=20)
+        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=15)
+
+        headers = ["ID", "Book", "Student", "Reserved On", "Expires", "Status"]
+        for c, text in zip(self.tree["columns"], headers):
+            self.tree.heading(c, text=text)
+            self.tree.column(c, anchor=tk.CENTER, width=160)
+
+        self.tree.tag_configure("expired", background="#ffcccc")
+        self.tree.tag_configure("ready", background="#fdfd96")
 
         # Action buttons
-        content = tk.Frame(main_frame, bg="#ecf0f1", padx=15, pady=15)
-        content.pack(fill=tk.BOTH, expand=True)
+        actions = tk.Frame(main, bg="#ecf0f1")
+        actions.pack(pady=5)
 
-        tk.Button(
-            content, text="Create Reservation", bg="#27ae60", fg="white",
-            width=18, command=self.open_reservation_dialog
-        ).pack(side=tk.LEFT, padx=5)
+        tk.Button(actions, text="Mark as READY", bg="#f39c12", fg="white",
+                  command=self.mark_ready).pack(side=tk.LEFT, padx=5)
 
-        tk.Button(
-            content, text="Refresh", bg="#95a5a6", fg="white",
-            width=18, command=self.load_reservations
-        ).pack(side=tk.LEFT, padx=5)
+        tk.Button(actions, text="CONFIRM Borrow", bg="#2980b9", fg="white",
+                  command=self.fulfill_reservation).pack(side=tk.LEFT, padx=5)
 
-        # Search area
-        search_frame = tk.Frame(content, bg="#ecf0f1")
-        search_frame.pack(fill=tk.X, pady=10)
+        tk.Button(actions, text="Cancel Reservation", bg="#e74c3c", fg="white",
+                  command=self.cancel_reservation).pack(side=tk.LEFT, padx=5)
 
-        tk.Label(search_frame, text="Search:", bg="#ecf0f1").pack(side=tk.LEFT)
-        self.search_entry = ttk.Entry(search_frame, width=40)
-        self.search_entry.pack(side=tk.LEFT, padx=5)
-
-        ttk.Button(search_frame, text="Search", command=self.search).pack(side=tk.LEFT)
-
-        # Table frame
-        table_frame = tk.Frame(content, bg="white")
-        table_frame.pack(fill=tk.BOTH, expand=True)
-
-        self.tree = ttk.Treeview(
-            table_frame,
-            columns=("ID", "Book", "Student", "Date", "Status"),
-            show="headings", height=20
-        )
-
-        headers = ["Reservation ID", "Book Title", "Student", "Reserved On", "Status"]
-        for col, name in zip(self.tree["columns"], headers):
-            self.tree.heading(col, text=name)
-
-        self.tree.pack(fill=tk.BOTH, expand=True)
-
-    # ===== Load Reservations =====
+    # ---------------- Load Reservations ----------------
     def load_reservations(self):
         self.tree.delete(*self.tree.get_children())
 
         query = """
-            SELECT r.reservation_id, b.title,
-                   CONCAT(s.first_name,' ',s.last_name) AS student_name,
-                   r.reservation_date, r.status
+            SELECT reservation_id, b.title,
+                   CONCAT(s.first_name,' ',s.last_name) AS student,
+                   reservation_date, expires_at, r.status
             FROM reservation r
             JOIN book b ON r.book_id = b.book_id
             JOIN student s ON r.student_id = s.student_id
@@ -113,90 +111,111 @@ class ReservationWindow:
 
         rows = db.execute_query(query)
 
-        if rows:
-            for r in rows:
-                self.tree.insert("", tk.END, values=(
-                    r["reservation_id"], r["title"], r["student_name"],
-                    r["reservation_date"], r["status"]
-                ))
+        now = datetime.now()
 
+        for r in rows:
+            tag = ""
+
+            if r["expires_at"] and datetime.strptime(str(r["expires_at"]), "%Y-%m-%d %H:%M:%S") < now:
+                tag = "expired"
+                if r["status"] == "Active":
+                    db.execute_query("UPDATE reservation SET status='Cancelled' WHERE reservation_id=%s",
+                                     (r["reservation_id"],))
+                    r["status"] = "Cancelled"
+
+            if r["status"] == "Ready":
+                tag = "ready"
+
+            self.tree.insert("", tk.END, tags=(tag,),
+                             values=(r["reservation_id"], r["title"], r["student"],
+                                     r["reservation_date"], r["expires_at"], r["status"]))
+
+    # ---------------- Search ----------------
     def search(self):
-        term = self.search_entry.get().strip()
-
+        term = self.search_var.get().strip().lower()
         if not term:
             return self.load_reservations()
 
-        query = """
-            SELECT r.reservation_id, b.title,
-                   CONCAT(s.first_name,' ',s.last_name) AS student_name,
-                   r.reservation_date, r.status
-            FROM reservation r
-            JOIN book b ON r.book_id = b.book_id
-            JOIN student s ON r.student_id = s.student_id
-            WHERE b.title LIKE %s OR s.first_name LIKE %s OR s.last_name LIKE %s
-        """
-
-        rows = db.execute_query(query, (f"%{term}%", f"%{term}%", f"%{term}%"))
+        data = []
+        for item in self.tree.get_children():
+            values = self.tree.item(item)["values"]
+            if term in str(values).lower():
+                data.append(values)
 
         self.tree.delete(*self.tree.get_children())
+        for row in data:
+            self.tree.insert("", "end", values=row)
 
-        if rows:
-            for r in rows:
-                self.tree.insert("", tk.END, values=(
-                    r["reservation_id"], r["title"], r["student_name"],
-                    r["reservation_date"], r["status"]
-                ))
-
-    # ===== Reservation Dialog =====
-    def open_reservation_dialog(self):
+    # ---------------- Create Reservation ----------------
+    def create_reservation_dialog(self):
         dialog = tk.Toplevel(self.root)
-        dialog.title("Reserve a Book")
-        dialog.geometry("400x350")
+        dialog.title("New Reservation")
+        dialog.geometry("400x300")
         dialog.configure(bg="#ecf0f1")
         dialog.grab_set()
 
-        frame = tk.Frame(dialog, bg="#ecf0f1", padx=20, pady=20)
-        frame.pack(fill=tk.BOTH, expand=True)
+        students = db.execute_query("SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM student")
+        student_cb = ttk.Combobox(dialog, values=[f"{s['student_id']} - {s['name']}" for s in students])
+        student_cb.pack(pady=10)
 
-        # Student dropdown
-        tk.Label(frame, text="Select Student:", bg="#ecf0f1").pack(anchor="w")
-        student_cb = ttk.Combobox(frame, width=35)
-        student_cb.pack(pady=5)
+        books = db.execute_query("SELECT book_id, title FROM book WHERE quantity > 0")
+        book_cb = ttk.Combobox(dialog, values=[f"{b['book_id']} - {b['title']}" for b in books])
+        book_cb.pack(pady=10)
 
-        students = db.execute_query("SELECT student_id, first_name, last_name FROM student")
-        student_map = {f"{s['first_name']} {s['last_name']}": s['student_id'] for s in students}
-        student_cb["values"] = list(student_map.keys())
-
-        # Book dropdown (only reservable books)
-        tk.Label(frame, text="Select Book:", bg="#ecf0f1").pack(anchor="w")
-        book_cb = ttk.Combobox(frame, width=35)
-        book_cb.pack(pady=5)
-
-        available_books = db.execute_query("SELECT book_id, title FROM book")
-        book_map = {b["title"]: b["book_id"] for b in available_books}
-        book_cb["values"] = list(book_map.keys())
-
-        tk.Label(frame, text=f"Reservation Date: {date.today()}", bg="#ecf0f1").pack(pady=10)
-
-        def save_reservation():
+        def save():
             if not student_cb.get() or not book_cb.get():
-                return messagebox.showwarning("Missing Information", "Select both student and book.")
+                return messagebox.showwarning("Missing", "Select student and book.")
 
-            query = """
-                INSERT INTO reservation (book_id, student_id, reservation_date, status)
-                VALUES (%s, %s, %s, 'Active')
-            """
+            student_id = student_cb.get().split(" - ")[0]
+            book_id = book_cb.get().split(" - ")[0]
 
-            values = (
-                book_map[book_cb.get()],
-                student_map[student_cb.get()],
-                date.today()
-            )
+            now = datetime.now()
+            expires = now + timedelta(hours=12)
 
-            if db.execute_query(query, values, fetch=False):
-                messagebox.showinfo("Success", "Reservation created successfully!")
-                dialog.destroy()
-                self.load_reservations()
+            db.execute_query("""
+                INSERT INTO reservation(book_id, student_id, reservation_date, ready_timestamp, expires_at, status)
+                VALUES (%s, %s, %s, %s, %s, 'Active')
+            """, (book_id, student_id, now.date(), now, expires))
 
-        tk.Button(dialog, text="Confirm Reservation", bg="#3498db", fg="white",
-                  width=20, command=save_reservation).pack(pady=20)
+            messagebox.showinfo("Success", "Reservation created.")
+            dialog.destroy()
+            self.load_reservations()
+
+        tk.Button(dialog, text="Save", bg="#27ae60", fg="white",
+                  width=15, command=save).pack(pady=20)
+
+    # ---------------- Status Actions ----------------
+    def get_selected(self):
+        selection = self.tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Select a reservation.")
+            return None
+        return self.tree.item(selection)["values"][0]
+
+    def mark_ready(self):
+        res_id = self.get_selected()
+        if not res_id:
+            return
+
+        db.execute_query("UPDATE reservation SET status='Ready' WHERE reservation_id=%s", (res_id,))
+        self.load_reservations()
+
+    def cancel_reservation(self):
+        res_id = self.get_selected()
+        if not res_id:
+            return
+
+        if messagebox.askyesno("Confirm", "Cancel this reservation?"):
+            db.execute_query("UPDATE reservation SET status='Cancelled' WHERE reservation_id=%s", (res_id,))
+            self.load_reservations()
+
+    def fulfill_reservation(self):
+        res_id = self.get_selected()
+        if not res_id:
+            return
+
+        # Placeholder: connect to Borrow
+        messagebox.showinfo("TODO", "Borrow conversion will be linked here.")
+        db.execute_query("UPDATE reservation SET status='Fulfilled' WHERE reservation_id=%s", (res_id,))
+        self.load_reservations()
+

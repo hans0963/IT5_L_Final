@@ -136,19 +136,19 @@ class DashboardWindow:
         books_root = tk.Toplevel(self.root)
         BookmanagementWindow(books_root, self.user_data, self.root)
     
-    
     def show_borrow_management(self):
-        from borrow import BorrowWindow
+        from borrow import BorrowManagementWindow
         self.root.withdraw()
 
         borrow_root = tk.Toplevel(self.root)
-        BorrowWindow(
+        BorrowManagementWindow(
             borrow_root,
-            librarian_data=self.user_data,
+            user_data=self.user_data,
             dashboard_root=self.root
         )
-        borrow_root.protocol("WM_DELETE_WINDOW", self.root.deiconify)
-    
+
+        borrow_root.protocol("WM_DELETE_WINDOW", lambda: [borrow_root.destroy(), self.root.deiconify()])
+
     def show_return_management(self):
         from return_book import ReturnWindow
         self.root.withdraw()
