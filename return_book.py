@@ -125,33 +125,55 @@ class ReturnWindow:
     def return_book(self):
         selected = self.tree.selection()
         if not selected:
-            return messagebox.showwarning("No Selection", "Select a record first.")
+            return messagebox.showwarning("No Selection", "Please select a book to return.")
 
-        transaction_id, _, _, _, due_date, status = self.tree.item(selected)["values"]
+        values = self.tree.item(selected)["values"]
 
-        # --- Create fine if overdue ---
-        if status == "Overdue":
-            days_late = (datetime.now().date() - datetime.strptime(str(due_date), "%Y-%m-%d").date()).days
-            fine_amount = days_late * 5   # <-- rate per day
+        transaction_id, _, _, _, due_date, status = values
 
-            db.execute_query("""
-                INSERT INTO fine(transaction_id, fine_amount, calculated_date, payment_status)
-                VALUES(%s, %s, CURDATE(), 'Unpaid')
-            """, (transaction_id, fine_amount))
+        today = datetime.now().date()
+        due_date_obj = datetime.strptime(str(due_date), "%Y-%m-%d").date()
 
-        # --- Update transaction to returned ---
+        # ---------------- CREATE FINE IF LATE ----------------
+        if today > due_date_obj:  # <-- FIXED CONDITION
+
+            days_late = (today - due_date_obj).days
+            fine_amount = days_late * 5
+
+            # Prevent duplicate fine entries
+            existing_fine = db.execute_query_one(
+                "SELECT fine_id FROM fine WHERE transaction_id=%s",
+                (transaction_id,)
+            )
+
+            if not existing_fine:
+                db.execute_query("""
+                    INSERT INTO fine(transaction_id, fine_amount, calculated_date, payment_status)
+                    VALUES (%s, %s, CURDATE(), 'Unpaid')
+                """, (transaction_id, fine_amount))
+
+                messagebox.showinfo(
+                    "Fine Added",
+                    f"Book is returned late.\nDays Late: {days_late}\nFine: ₱{fine_amount:.2f}"
+                )
+
+        # ---------------- UPDATE TRANSACTION STATUS ----------------
         db.execute_query("""
             UPDATE borrow_transaction 
             SET status='Returned', return_date=CURDATE()
             WHERE transaction_id=%s
         """, (transaction_id,))
 
-        # --- Return the book stock ---
-        book = db.execute_query_one("""
-            SELECT book_id FROM borrow_transaction WHERE transaction_id=%s
-        """, (transaction_id,))
+        # ---------------- UPDATE BOOK STOCK ----------------
+        book_id = db.execute_query_one(
+            "SELECT book_id FROM borrow_transaction WHERE transaction_id=%s",
+            (transaction_id,)
+        )["book_id"]
 
-        db.execute_query("UPDATE book SET quantity = quantity + 1 WHERE book_id = %s", (book["book_id"],))
+        db.execute_query(
+            "UPDATE book SET quantity = quantity + 1 WHERE book_id=%s",
+            (book_id,)
+        )
 
         self.load_table()
         messagebox.showinfo("Success", "Book successfully returned.")
