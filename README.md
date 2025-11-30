@@ -1,1 +1,3 @@
-Added error handlings for (Login, Register, Students, and Books Management)
+Soon:
+    Email feature
+    And maybe fix the reservation
