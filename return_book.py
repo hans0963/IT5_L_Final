@@ -79,9 +79,9 @@ class ReturnWindow:
                    CONCAT(s.first_name, ' ', s.last_name) AS student,
                    b.title, bt.borrow_date, bt.due_date, 
                    COALESCE(bt.status,'Active') AS status
-            FROM borrow_transaction bt
-            JOIN student s ON bt.student_id = s.student_id
-            JOIN book b ON bt.book_id = b.book_id
+            FROM borrow_transactions bt
+            JOIN students s ON bt.student_id = s.student_id
+            JOIN books b ON bt.book_id = b.book_id
             WHERE LOWER(COALESCE(bt.status,'active')) IN ('active','overdue')
             ORDER BY bt.transaction_id DESC
         """
@@ -96,7 +96,7 @@ class ReturnWindow:
             # Auto-update overdue status
             if overdue and row["status"].lower() == "active":
                 db.execute_query(
-                    "UPDATE borrow_transaction SET status='Overdue' WHERE transaction_id=%s",
+                    "UPDATE borrow_transactions SET status='Overdue' WHERE transaction_id=%s",
                     (row["transaction_id"],)
                 )
                 row["status"] = "Overdue"
@@ -142,13 +142,13 @@ class ReturnWindow:
 
             # Prevent duplicate fine entries
             existing_fine = db.execute_query_one(
-                "SELECT fine_id FROM fine WHERE transaction_id=%s",
+                "SELECT fine_id FROM fines WHERE transaction_id=%s",
                 (transaction_id,)
             )
 
             if not existing_fine:
                 db.execute_query("""
-                    INSERT INTO fine(transaction_id, fine_amount, calculated_date, payment_status)
+                    INSERT INTO fines(transaction_id, fine_amount, calculated_date, payment_status)
                     VALUES (%s, %s, CURDATE(), 'Unpaid')
                 """, (transaction_id, fine_amount))
 
@@ -159,19 +159,19 @@ class ReturnWindow:
 
         # ---------------- UPDATE TRANSACTION STATUS ----------------
         db.execute_query("""
-            UPDATE borrow_transaction 
+            UPDATE borrow_transactions 
             SET status='Returned', return_date=CURDATE()
             WHERE transaction_id=%s
         """, (transaction_id,))
 
         # ---------------- UPDATE BOOK STOCK ----------------
         book_id = db.execute_query_one(
-            "SELECT book_id FROM borrow_transaction WHERE transaction_id=%s",
+            "SELECT book_id FROM borrow_transactions WHERE transaction_id=%s",
             (transaction_id,)
         )["book_id"]
 
         db.execute_query(
-            "UPDATE book SET quantity = quantity + 1 WHERE book_id=%s",
+            "UPDATE books SET quantity = quantity + 1 WHERE book_id=%s",
             (book_id,)
         )
 
@@ -190,11 +190,11 @@ class ReturnWindow:
             return
 
         db.execute_query(
-            "INSERT INTO fine(transaction_id, amount, status) VALUES(%s,%s,'Unpaid')",
+            "INSERT INTO fines(transaction_id, amount, status) VALUES(%s,%s,'Unpaid')",
             (transaction_id, 300)
         )
 
-        db.execute_query("UPDATE borrow_transaction SET status='Lost' WHERE transaction_id=%s",
+        db.execute_query("UPDATE borrow_transactions SET status='Lost' WHERE transaction_id=%s",
                          (transaction_id,))
 
         self.load_table()

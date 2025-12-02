@@ -142,7 +142,7 @@ class LoginWindow:
 
         hashed_password = self.hash_password(password)
 
-        query = "SELECT * FROM librarian WHERE username = %s AND password = %s"
+        query = "SELECT * FROM librarians WHERE username = %s AND password = %s"
         result = db.execute_query_one(query, (username, hashed_password))
 
         if result:
@@ -293,7 +293,7 @@ class LoginWindow:
             hashed_password = self.hash_password(password)
             
             query = """
-                INSERT INTO librarian (first_name, last_name, email, username, password, hire_date)
+                INSERT INTO librarians (first_name, last_name, email, username, password, hire_date)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """
             values = (first_name, last_name, email, username, hashed_password, date.today())

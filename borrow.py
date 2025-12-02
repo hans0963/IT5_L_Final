@@ -68,13 +68,13 @@ class BorrowManagementWindow:
         dialog.grab_set()
 
         # Fetch Available Books Only
-        books = db.execute_query("SELECT book_id, title FROM book WHERE quantity > 0")
+        books = db.execute_query("SELECT book_id, title FROM books WHERE quantity > 0")
         if not books:
             messagebox.showwarning("Unavailable", "No books available for borrowing.")
             dialog.destroy()
             return
 
-        students = db.execute_query("SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM student")
+        students = db.execute_query("SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM students")
 
         tk.Label(dialog, text="Select Student", bg="#ecf0f1", font=("Arial", 10, "bold")).pack(anchor="w", padx=20, pady=5)
         cb_student = ttk.Combobox(dialog, values=[f"{s['student_id']} - {s['name']}" for s in students], width=35)
@@ -98,12 +98,12 @@ class BorrowManagementWindow:
             librarian_id = self.user_data.get("librarian_id") or self.user_data.get("id")
 
             query = """
-                INSERT INTO borrow_transaction(student_id, book_id, librarian_id, borrow_date, due_date, status)
+                INSERT INTO borrow_transactions(student_id, book_id, librarian_id, borrow_date, due_date, status)
                 VALUES(%s, %s, %s, %s, %s, 'Active')
             """
 
             db.execute_query(query, (student_id, book_id, librarian_id, borrow_date, due_date))
-            db.execute_query("UPDATE book SET quantity = quantity - 1 WHERE book_id = %s", (book_id,))
+            db.execute_query("UPDATE books SET quantity = quantity - 1 WHERE book_id = %s", (book_id,))
 
             messagebox.showinfo("Success", "Book Borrowed Successfully!")
             dialog.destroy()
@@ -124,9 +124,9 @@ class BorrowManagementWindow:
                 bt.borrow_date,
                 bt.due_date,
                 bt.status
-            FROM borrow_transaction bt
-            JOIN student s ON bt.student_id = s.student_id
-            JOIN book b ON bt.book_id = b.book_id
+            FROM borrow_transactions bt
+            JOIN students s ON bt.student_id = s.student_id
+            JOIN books b ON bt.book_id = b.book_id
             ORDER BY bt.transaction_id DESC
         """
 
@@ -145,7 +145,7 @@ class BorrowManagementWindow:
             if status_value == "Active" and row["due_date"] < datetime.now().date():
                 status_value = "Overdue"
                 db.execute_query(
-                    "UPDATE borrow_transaction SET status='Overdue' WHERE transaction_id=%s",
+                    "UPDATE borrow_transactions SET status='Overdue' WHERE transaction_id=%s",
                     (row["transaction_id"],)
                 )
 
@@ -173,9 +173,9 @@ class BorrowManagementWindow:
             SELECT bt.transaction_id, 
                    CONCAT(s.first_name, ' ', s.last_name) AS student,
                    b.title AS book, bt.borrow_date, bt.due_date, bt.status
-            FROM borrow_transaction bt
-            JOIN student s ON bt.student_id = s.student_id
-            JOIN book b ON bt.book_id = b.book_id
+            FROM borrow_transactions bt
+            JOIN students s ON bt.student_id = s.student_id
+            JOIN books b ON bt.book_id = b.book_id
             WHERE s.first_name LIKE %s OR s.last_name LIKE %s OR b.title LIKE %s
         """
 

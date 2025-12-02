@@ -7,7 +7,7 @@ class FineManagementWindow:
     def __init__(self, master, user_data=None, dashboard_root=None):
         self.master = master
         self.master.title("Fine Management")
-        self.master.geometry("1100x500")
+        self.master.geometry("1100x700")
 
         self.user_data = user_data
         self.dashboard_root = dashboard_root
@@ -79,10 +79,10 @@ class FineManagementWindow:
                    f.fine_amount,
                    f.payment_status,
                    f.calculated_date
-            FROM fine f
-            JOIN borrow_transaction bt ON f.transaction_id = bt.transaction_id
-            JOIN student s ON bt.student_id = s.student_id
-            JOIN book b ON bt.book_id = b.book_id
+            FROM fines f
+            JOIN borrow_transactions bt ON f.transaction_id = bt.transaction_id
+            JOIN students s ON bt.student_id = s.student_id
+            JOIN books b ON bt.book_id = b.book_id
         """
 
         rows = db.execute_query(query)
@@ -110,10 +110,10 @@ class FineManagementWindow:
                    f.fine_amount,
                    f.payment_status,
                    f.calculated_date
-            FROM fine f
-            JOIN borrow_transaction bt ON f.transaction_id = bt.transaction_id
-            JOIN student s ON bt.student_id = s.student_id
-            JOIN book b ON bt.book_id = b.book_id
+            FROM fines f
+            JOIN borrow_transactions bt ON f.transaction_id = bt.transaction_id
+            JOIN students s ON bt.student_id = s.student_id
+            JOIN books b ON bt.book_id = b.book_id
             WHERE s.first_name LIKE %s OR s.last_name LIKE %s OR b.title LIKE %s
         """
 
@@ -135,8 +135,7 @@ class FineManagementWindow:
 
         fine_id = selected[0]
 
-        db.execute_query("UPDATE fine SET payment_status='Paid', paid_date=CURDATE() WHERE fine_id=%s",
-                         (fine_id,))
+        db.execute_query("UPDATE fines SET payment_status='Paid', paid_date=CURDATE() WHERE fine_id=%s", (fine_id,))
         messagebox.showinfo("Updated", "Fine marked as paid.")
         self.load_fines()
 
@@ -149,7 +148,7 @@ class FineManagementWindow:
         if not messagebox.askyesno("Confirm", "Are you sure you want to waive this fine?"):
             return
 
-        db.execute_query("UPDATE fine SET payment_status='Waived' WHERE fine_id=%s", (fine_id,))
+        db.execute_query("UPDATE fines SET payment_status='Waived' WHERE fine_id=%s", (fine_id,))
         messagebox.showinfo("Updated", "Fine has been waived.")
         self.load_fines()
 
@@ -162,7 +161,7 @@ class FineManagementWindow:
         if not messagebox.askyesno("Confirm", "Are you sure you want to permanently delete this fine?"):
             return
 
-        db.execute_query("DELETE FROM fine WHERE fine_id=%s", (fine_id,))
+        db.execute_query("DELETE FROM fines WHERE fine_id=%s", (fine_id,))
         messagebox.showinfo("Deleted", "Fine removed successfully.")
         self.load_fines()
 

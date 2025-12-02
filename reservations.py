@@ -103,9 +103,9 @@ class ReservationWindow:
             SELECT reservation_id, b.title,
                    CONCAT(s.first_name,' ',s.last_name) AS student,
                    reservation_date, expires_at, r.status
-            FROM reservation r
-            JOIN book b ON r.book_id = b.book_id
-            JOIN student s ON r.student_id = s.student_id
+            FROM reservations r
+            JOIN books b ON r.book_id = b.book_id
+            JOIN students s ON r.student_id = s.student_id
             ORDER BY r.reservation_id DESC
         """
 
@@ -119,7 +119,7 @@ class ReservationWindow:
             if r["expires_at"] and datetime.strptime(str(r["expires_at"]), "%Y-%m-%d %H:%M:%S") < now:
                 tag = "expired"
                 if r["status"] == "Active":
-                    db.execute_query("UPDATE reservation SET status='Cancelled' WHERE reservation_id=%s",
+                    db.execute_query("UPDATE reservations SET status='Cancelled' WHERE reservation_id=%s",
                                      (r["reservation_id"],))
                     r["status"] = "Cancelled"
 
@@ -154,11 +154,11 @@ class ReservationWindow:
         dialog.configure(bg="#ecf0f1")
         dialog.grab_set()
 
-        students = db.execute_query("SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM student")
+        students = db.execute_query("SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM students")
         student_cb = ttk.Combobox(dialog, values=[f"{s['student_id']} - {s['name']}" for s in students])
         student_cb.pack(pady=10)
 
-        books = db.execute_query("SELECT book_id, title FROM book WHERE quantity > 0")
+        books = db.execute_query("SELECT book_id, title FROM books WHERE quantity > 0")
         book_cb = ttk.Combobox(dialog, values=[f"{b['book_id']} - {b['title']}" for b in books])
         book_cb.pack(pady=10)
 
@@ -173,7 +173,7 @@ class ReservationWindow:
             expires = now + timedelta(hours=12)
 
             db.execute_query("""
-                INSERT INTO reservation(book_id, student_id, reservation_date, ready_timestamp, expires_at, status)
+                INSERT INTO reservations(book_id, student_id, reservation_date, ready_timestamp, expires_at, status)
                 VALUES (%s, %s, %s, %s, %s, 'Active')
             """, (book_id, student_id, now.date(), now, expires))
 
@@ -197,7 +197,7 @@ class ReservationWindow:
         if not res_id:
             return
 
-        db.execute_query("UPDATE reservation SET status='Ready' WHERE reservation_id=%s", (res_id,))
+        db.execute_query("UPDATE reservations SET status='Ready' WHERE reservation_id=%s", (res_id,))
         self.load_reservations()
 
     def cancel_reservation(self):
@@ -206,7 +206,7 @@ class ReservationWindow:
             return
 
         if messagebox.askyesno("Confirm", "Cancel this reservation?"):
-            db.execute_query("UPDATE reservation SET status='Cancelled' WHERE reservation_id=%s", (res_id,))
+            db.execute_query("UPDATE reservations SET status='Cancelled' WHERE reservation_id=%s", (res_id,))
             self.load_reservations()
 
     def fulfill_reservation(self):
@@ -216,6 +216,6 @@ class ReservationWindow:
 
         # Placeholder: connect to Borrow
         messagebox.showinfo("TODO", "Borrow conversion will be linked here.")
-        db.execute_query("UPDATE reservation SET status='Fulfilled' WHERE reservation_id=%s", (res_id,))
+        db.execute_query("UPDATE reservations SET status='Fulfilled' WHERE reservation_id=%s", (res_id,))
         self.load_reservations()
 

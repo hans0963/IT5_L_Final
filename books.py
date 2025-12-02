@@ -16,7 +16,7 @@ class BookmanagementWindow:
         self.dashboard_root = dashboard_root
         
         self.root.title("Book Management")
-        self.root.geometry("1200x700")
+        self.root.geometry("1500x700")
 
         ttk.Style().theme_use("clam")
 
@@ -121,7 +121,7 @@ class BookmanagementWindow:
 
     def load_books(self):
         self.tree.delete(*self.tree.get_children())
-        rows = db.execute_query("SELECT * FROM book ORDER BY book_id DESC")
+        rows = db.execute_query("SELECT * FROM books ORDER BY book_id DESC")
 
         if rows:
             for row in rows:
@@ -143,7 +143,7 @@ class BookmanagementWindow:
         self.tree.delete(*self.tree.get_children())
 
         like = f"%{keyword}%"
-        query = """SELECT * FROM book WHERE title LIKE %s OR author LIKE %s OR isbn LIKE %s"""
+        query = """SELECT * FROM books WHERE title LIKE %s OR author LIKE %s OR isbn LIKE %s"""
 
         rows = db.execute_query(query, (like, like, like))
 
@@ -216,13 +216,13 @@ class BookmanagementWindow:
 
             if mode == "add":
                 today = str(date.today())
-                query = """INSERT INTO book (isbn,title,author,publisher,publication_year,category,
+                query = """INSERT INTO books (isbn,title,author,publisher,publication_year,category,
                            location,quantity,status,date_added,created_at)
                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
                 params = (isbn.get(), title.get(), author.get(), publisher.get(), year.get(),
                           category.get(), location.get(), qty.get(), status.get(), today, today)
             else:
-                query = """UPDATE book SET isbn=%s,title=%s,author=%s,publisher=%s,publication_year=%s,
+                query = """UPDATE books SET isbn=%s,title=%s,author=%s,publisher=%s,publication_year=%s,
                            category=%s,location=%s,quantity=%s,status=%s WHERE book_id=%s"""
                 params = (isbn.get(), title.get(), author.get(), publisher.get(), year.get(),
                           category.get(), location.get(), qty.get(), status.get(), book_id)
@@ -244,6 +244,6 @@ class BookmanagementWindow:
         title = self.tree.item(selected, "values")[1]
 
         if messagebox.askyesno("Confirm Delete", f"Delete book '{title}'?"):
-            db.execute_query("DELETE FROM book WHERE book_id=%s", (selected[0],))
+            db.execute_query("DELETE FROM books WHERE book_id=%s", (selected[0],))
             self.load_books()
             messagebox.showinfo("Deleted", "Book removed successfully.")

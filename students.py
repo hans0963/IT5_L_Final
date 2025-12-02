@@ -234,7 +234,7 @@ class StudentManagementWindow:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        query = "SELECT student_id, first_name, last_name, email, phone, registration_date FROM student ORDER BY student_id"
+        query = "SELECT student_id, first_name, last_name, email, phone, registration_date FROM students ORDER BY student_id"
         students = db.execute_query(query)
         
         if students:
@@ -271,7 +271,7 @@ class StudentManagementWindow:
         
         query = """
             SELECT student_id, first_name, last_name, email, phone, registration_date 
-            FROM student 
+            FROM students 
             WHERE first_name LIKE %s OR last_name LIKE %s OR email LIKE %s
             ORDER BY student_id
         """
@@ -349,7 +349,7 @@ class StudentManagementWindow:
 
             from datetime import date
             query = """
-                INSERT INTO student (first_name, last_name, email, phone, registration_date)
+                INSERT INTO students (first_name, last_name, email, phone, registration_date)
                 VALUES (%s, %s, %s, %s, %s)
             """
             values = (first_name, last_name, email, phone if phone else None, date.today())
@@ -434,7 +434,7 @@ class StudentManagementWindow:
 
             # Update record
             query = """
-                UPDATE student
+                UPDATE students
                 SET first_name=%s, last_name=%s, email=%s, phone=%s
                 WHERE student_id=%s
                 """
@@ -479,7 +479,7 @@ class StudentManagementWindow:
         )
         
         if confirm:
-            query = "DELETE FROM student WHERE student_id = %s"
+            query = "DELETE FROM students WHERE student_id = %s"
             if db.execute_query(query, (student_id,), fetch=False):
                 messagebox.showinfo("Success", "Student deleted successfully!")
                 self.load_students()

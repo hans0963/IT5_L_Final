@@ -19,7 +19,7 @@ COMMON_WEAK_PASSWORDS = {
 
 # Student fields
 NAME_RE = re.compile(r"^[A-Za-z\s-]{2,50}$")  # letters, spaces, hyphens
-PHONE_RE = re.compile(r"^[0-9]{12}$")  # Philippine standard mobile format
+PHONE_RE = re.compile(r"^[0-9]{11}$")  # Philippine standard mobile format
 
 # Books
 TITLE_RE = re.compile(r"^.{2,100}$")  # any characters, at least 2
@@ -81,7 +81,7 @@ def validate_student_fields(first: str, last: str, email: str, phone: str) -> tu
 
     # OPTIONAL phone version:
     if phone and not validate_phone(phone):
-        return False, "Phone number must be exactly 11 or 12 digits (numbers only)."
+        return False, "Phone number must be exactly 11 (numbers only)."
 
     return True, ""
 
