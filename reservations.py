@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from database import db
-
 
 class ReservationWindow:
     def __init__(self, root, user_data, dashboard_root):
@@ -110,12 +109,12 @@ class ReservationWindow:
         """
 
         rows = db.execute_query(query)
-
         now = datetime.now()
 
         for r in rows:
             tag = ""
 
+            # Auto mark expired
             if r["expires_at"] and datetime.strptime(str(r["expires_at"]), "%Y-%m-%d %H:%M:%S") < now:
                 tag = "expired"
                 if r["status"] == "Active":
@@ -149,40 +148,77 @@ class ReservationWindow:
     # ---------------- Create Reservation ----------------
     def create_reservation_dialog(self):
         dialog = tk.Toplevel(self.root)
-        dialog.title("New Reservation")
+        dialog.title("Create Reservation")
         dialog.geometry("400x300")
         dialog.configure(bg="#ecf0f1")
         dialog.grab_set()
 
-        students = db.execute_query("SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM students")
-        student_cb = ttk.Combobox(dialog, values=[f"{s['student_id']} - {s['name']}" for s in students])
-        student_cb.pack(pady=10)
+        container = tk.Frame(dialog, bg="#ecf0f1")
+        container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-        books = db.execute_query("SELECT book_id, title FROM books WHERE quantity > 0")
-        book_cb = ttk.Combobox(dialog, values=[f"{b['book_id']} - {b['title']}" for b in books])
-        book_cb.pack(pady=10)
+        # ---- STUDENT ----
+        tk.Label(container, text="Select Student:", bg="#ecf0f1",
+                font=("Arial", 11, "bold")).pack(anchor="w", pady=(0,5))
 
-        def save():
-            if not student_cb.get() or not book_cb.get():
-                return messagebox.showwarning("Missing", "Select student and book.")
+        students = db.execute_query(
+            "SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM students"
+        )
+        self.student_cb = ttk.Combobox(
+            container,
+            values=[f"{s['student_id']} - {s['name']}" for s in students],
+            width=40,
+            state="readonly"
+        )
+        self.student_cb.pack(pady=(0,10))
 
-            student_id = student_cb.get().split(" - ")[0]
-            book_id = book_cb.get().split(" - ")[0]
+        # ---- BOOK ----
+        tk.Label(container, text="Select Book:", bg="#ecf0f1",
+                font=("Arial", 11, "bold")).pack(anchor="w", pady=(10,5))
 
-            now = datetime.now()
-            expires = now + timedelta(hours=12)
+        books = db.execute_query(
+            "SELECT book_id, title FROM books WHERE quantity > 0"
+        )
+        self.book_cb = ttk.Combobox(
+            container,
+            values=[f"{b['book_id']} - {b['title']}" for b in books],
+            width=40,
+            state="readonly"
+        )
+        self.book_cb.pack(pady=(0,10))
 
-            db.execute_query("""
-                INSERT INTO reservations(book_id, student_id, reservation_date, ready_timestamp, expires_at, status)
-                VALUES (%s, %s, %s, %s, %s, 'Active')
-            """, (book_id, student_id, now.date(), now, expires))
+        # ---- BUTTON ----
+        tk.Button(
+            container,
+            text="Save Reservation",
+            bg="#27ae60",
+            fg="white",
+            width=20,
+            height=1,
+            font=("Arial", 11, "bold"),
+            command=lambda: self.save_reservation(dialog)
+        ).pack(pady=20)
 
-            messagebox.showinfo("Success", "Reservation created.")
+    def save_reservation(self, dialog):
+        if not self.student_cb.get() or not self.book_cb.get():
+            return messagebox.showwarning("Missing Data", "Please select both student and book.")
+
+        student_id = self.student_cb.get().split(" - ")[0]
+        book_id = self.book_cb.get().split(" - ")[0]
+
+        success = db.execute_query("""
+            INSERT INTO reservations
+            (book_id, student_id, reservation_date, status, expires_at)
+            VALUES
+            (%s, %s, NOW(), 'Active', DATE_ADD(NOW(), INTERVAL 7 DAY))
+        """, (book_id, student_id), fetch=False)
+
+        if success:
+            messagebox.showinfo("Success", "Reservation created successfully!")
             dialog.destroy()
             self.load_reservations()
+        else:
+            messagebox.showerror("Error", "Failed to create reservation.")
 
-        tk.Button(dialog, text="Save", bg="#27ae60", fg="white",
-                  width=15, command=save).pack(pady=20)
 
     # ---------------- Status Actions ----------------
     def get_selected(self):
@@ -196,7 +232,6 @@ class ReservationWindow:
         res_id = self.get_selected()
         if not res_id:
             return
-
         db.execute_query("UPDATE reservations SET status='Ready' WHERE reservation_id=%s", (res_id,))
         self.load_reservations()
 
@@ -214,8 +249,27 @@ class ReservationWindow:
         if not res_id:
             return
 
-        # Placeholder: connect to Borrow
-        messagebox.showinfo("TODO", "Borrow conversion will be linked here.")
-        db.execute_query("UPDATE reservations SET status='Fulfilled' WHERE reservation_id=%s", (res_id,))
-        self.load_reservations()
+        reservation = db.execute_query(
+            "SELECT student_id, book_id FROM reservations WHERE reservation_id=%s", (res_id,)
+        )
+        if not reservation:
+            messagebox.showerror("Error", "Reservation not found.")
+            return
 
+        student_id = reservation[0]["student_id"]
+        book_id = reservation[0]["book_id"]
+
+        borrow_date = datetime.now().date()
+        due_date = borrow_date + timedelta(days=7)
+        librarian_id = self.librarian_id
+
+        db.execute_query("""
+            INSERT INTO borrow_transactions(student_id, book_id, librarian_id, borrow_date, due_date, status)
+            VALUES(%s, %s, %s, %s, %s, 'Active')
+        """, (student_id, book_id, librarian_id, borrow_date, due_date))
+
+        db.execute_query("UPDATE books SET quantity = quantity - 1 WHERE book_id = %s", (book_id,))
+        db.execute_query("UPDATE reservations SET status='Fulfilled' WHERE reservation_id=%s", (res_id,))
+
+        messagebox.showinfo("Success", "Book borrowed and reservation fulfilled!")
+        self.load_reservations()

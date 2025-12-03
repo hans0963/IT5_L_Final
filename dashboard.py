@@ -176,7 +176,6 @@ class DashboardWindow:
         fines_root = tk.Toplevel(self.root)
         FineManagementWindow(
             fines_root,
-            self.user_data,
             self.root
         )
 

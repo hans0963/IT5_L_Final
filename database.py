@@ -16,8 +16,8 @@ class Database:
             self.connection = mysql.connector.connect(
                 host='localhost',
                 database='library_management',
-                user='root',  # Change this to your MySQL username
-                password=''   # Change this to your MySQL password
+                user='root',
+                password=''
             )
             if self.connection.is_connected():
                 print("Successfully connected to database")
@@ -25,17 +25,19 @@ class Database:
         except Error as e:
             messagebox.showerror("Database Error", f"Error connecting to database: {e}")
             return False
-    
+
     def execute_query(self, query, params=None, fetch=True):
-        """Execute a query and return results"""
+        """Execute SELECT or INSERT/UPDATE/DELETE automatically"""
         try:
             cursor = self.connection.cursor(dictionary=True)
-            if params:
-                cursor.execute(query, params)
-            else:
-                cursor.execute(query)
-            
-            if fetch:
+
+            # Run the SQL
+            cursor.execute(query, params or ())
+
+            # AUTO-DETECT SELECT versus NON-SELECT queries
+            is_select = query.strip().lower().startswith("select")
+
+            if is_select:
                 result = cursor.fetchall()
                 cursor.close()
                 return result
@@ -43,28 +45,24 @@ class Database:
                 self.connection.commit()
                 cursor.close()
                 return True
+
         except Error as e:
-            messagebox.showerror("Database Error", f"Error executing query: {e}")
-            return None if fetch else False
-    
+            messagebox.showerror("Database Error", f"Error executing query:\n{e}")
+            return None
+
     def execute_query_one(self, query, params=None):
-        """Execute a query and return one result"""
+        """Fetch exactly one row"""
         try:
             cursor = self.connection.cursor(dictionary=True)
-            if params:
-                cursor.execute(query, params)
-            else:
-                cursor.execute(query)
-            
+            cursor.execute(query, params or ())
             result = cursor.fetchone()
             cursor.close()
             return result
         except Error as e:
-            messagebox.showerror("Database Error", f"Error executing query: {e}")
+            messagebox.showerror("Database Error", f"Error executing query:\n{e}")
             return None
-    
+
     def close(self):
-        """Close database connection"""
         if self.connection and self.connection.is_connected():
             self.connection.close()
             print("Database connection closed")
