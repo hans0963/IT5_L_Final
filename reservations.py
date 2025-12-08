@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
 from database import db
+from email_sender import EmailSender
+from email_utils import generate_reservation_email, generate_ready_email
 
 class ReservationWindow:
     def __init__(self, root, user_data, dashboard_root):
@@ -11,9 +13,11 @@ class ReservationWindow:
 
         self.librarian_id = user_data.get("librarian_id") or user_data.get("id")
 
+        # Email handler (safe even if credentials empty)
+        self.mailer = EmailSender()
+
         self.root.title("Book Reservations")
         self.root.geometry("1000x600")
-
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         self.build_ui()
@@ -114,7 +118,7 @@ class ReservationWindow:
         for r in rows:
             tag = ""
 
-            # Auto mark expired
+            # auto-expire
             if r["expires_at"] and datetime.strptime(str(r["expires_at"]), "%Y-%m-%d %H:%M:%S") < now:
                 tag = "expired"
                 if r["status"] == "Active":
@@ -156,13 +160,15 @@ class ReservationWindow:
         container = tk.Frame(dialog, bg="#ecf0f1")
         container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-        # ---- STUDENT ----
+        # STUDENT
         tk.Label(container, text="Select Student:", bg="#ecf0f1",
                 font=("Arial", 11, "bold")).pack(anchor="w", pady=(0,5))
 
         students = db.execute_query(
-            "SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM students"
+            "SELECT student_id, email, CONCAT(first_name, ' ', last_name) AS name FROM students"
         )
+        self.all_students = students
+
         self.student_cb = ttk.Combobox(
             container,
             values=[f"{s['student_id']} - {s['name']}" for s in students],
@@ -171,13 +177,15 @@ class ReservationWindow:
         )
         self.student_cb.pack(pady=(0,10))
 
-        # ---- BOOK ----
+        # BOOK
         tk.Label(container, text="Select Book:", bg="#ecf0f1",
                 font=("Arial", 11, "bold")).pack(anchor="w", pady=(10,5))
 
         books = db.execute_query(
             "SELECT book_id, title FROM books WHERE quantity > 0"
         )
+        self.all_books = books
+
         self.book_cb = ttk.Combobox(
             container,
             values=[f"{b['book_id']} - {b['title']}" for b in books],
@@ -186,7 +194,7 @@ class ReservationWindow:
         )
         self.book_cb.pack(pady=(0,10))
 
-        # ---- BUTTON ----
+        # Button
         tk.Button(
             container,
             text="Save Reservation",
@@ -213,12 +221,19 @@ class ReservationWindow:
         """, (book_id, student_id), fetch=False)
 
         if success:
+            # Send email (safe even if config empty)
+            student = next(s for s in self.all_students if str(s["student_id"]) == student_id)
+            book = next(b for b in self.all_books if str(b["book_id"]) == book_id)
+
+            subject, body = generate_reservation_email(student["name"], book["title"])
+
+            self.mailer.send_email(student["email"], subject, body)
+
             messagebox.showinfo("Success", "Reservation created successfully!")
             dialog.destroy()
             self.load_reservations()
         else:
             messagebox.showerror("Error", "Failed to create reservation.")
-
 
     # ---------------- Status Actions ----------------
     def get_selected(self):
@@ -232,7 +247,23 @@ class ReservationWindow:
         res_id = self.get_selected()
         if not res_id:
             return
+
         db.execute_query("UPDATE reservations SET status='Ready' WHERE reservation_id=%s", (res_id,))
+
+        # Send READY email
+        data = db.execute_query("""
+            SELECT s.email, CONCAT(s.first_name, ' ', s.last_name) AS name, b.title
+            FROM reservations r
+            JOIN students s ON r.student_id=s.student_id
+            JOIN books b ON r.book_id=b.book_id
+            WHERE reservation_id=%s
+        """, (res_id,))
+
+        if data:
+            student = data[0]
+            subject, body = generate_ready_email(student["name"], student["title"])
+            self.mailer.send_email(student["email"], subject, body)
+
         self.load_reservations()
 
     def cancel_reservation(self):

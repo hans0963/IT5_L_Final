@@ -171,12 +171,13 @@ class DashboardWindow:
 
     def show_fines_management(self):
         from fine import FineManagementWindow
-        self.root.withdraw()  # hide dashboard
+        self.root.withdraw()
 
         fines_root = tk.Toplevel(self.root)
         FineManagementWindow(
             fines_root,
-            self.root
+            self.user_data,   # contains first_name, last_name
+            self.root         # dashboard root
         )
 
         fines_root.protocol("WM_DELETE_WINDOW", lambda: [fines_root.destroy(), self.root.deiconify()])

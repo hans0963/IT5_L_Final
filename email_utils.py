@@ -1,35 +1,57 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from email_sender import EmailSender
 
+mailer = EmailSender()
+
+
+# ---------------- Reservation Email ----------------
+def generate_reservation_email(student_name, book_title):
+    subject = "📚 Reservation Confirmed"
+    body = (
+        f"Hello {student_name},\n\n"
+        f"Your reservation for the book:\n"
+        f"📖 {book_title}\n\n"
+        f"has been successfully placed.\n"
+        f"You can pick it up within 7 days.\n\n"
+        f"Thank you!"
+    )
+    return subject, body
+
+
+# ---------------- Ready for Pickup Email ----------------
+def generate_ready_email(student_name, book_title):
+    subject = "📗 Your Reserved Book is READY for Pickup!"
+    body = (
+        f"Hello {student_name},\n\n"
+        f"The book you reserved is now available:\n"
+        f"📖 {book_title}\n\n"
+        f"Please claim it at the library front desk.\n\n"
+        f"Thank you!"
+    )
+    return subject, body
+
+
+# ---------------- Reminder Email ----------------
 def send_gmail_reminder(to_email, student_name, book_title, due_date):
-    sender_email = "your_gmail@gmail.com"
-    app_password = "your_app_password"  # Use Gmail App Password
-    subject = "Library Overdue Book Reminder"
-    body = f"Dear {student_name},\n\nThis is a reminder that your borrowed book '{book_title}' was due on {due_date}. Please return it as soon as possible to avoid further penalties.\n\nThank you."
+    subject = "🔔 Book Return Reminder"
+    body = (
+        f"Hello {student_name},\n\n"
+        f"This is a reminder that the book:\n"
+        f"📖 {book_title}\n\n"
+        f"is due on: {due_date}\n\n"
+        f"Please return it on time to avoid penalties.\n"
+        f"\nThank you!"
+    )
+    return mailer.send_email(to_email, subject, body)
 
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = to_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
 
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(sender_email, app_password)
-        server.send_message(msg)
-
+# ---------------- Book Available Notification ----------------
 def send_book_available_notification(to_email, student_name, book_title):
-    sender_email = "your_gmail@gmail.com"
-    app_password = "your_app_password"  # Use Gmail App Password
-    subject = "Library Book Now Available"
-    body = f"Dear {student_name},\n\nThe book you reserved, '{book_title}', is now available for pickup. Please visit the library to collect it.\n\nThank you."
-
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = to_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
-
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(sender_email, app_password)
-        server.send_message(msg)
+    subject = "📕 Book Now Available"
+    body = (
+        f"Hello {student_name},\n\n"
+        f"The book you were waiting for is now available:\n"
+        f"📖 {book_title}\n\n"
+        f"You may reserve or borrow it anytime.\n\n"
+        f"Thank you!"
+    )
+    return mailer.send_email(to_email, subject, body)

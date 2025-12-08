@@ -3,6 +3,13 @@ from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
 from database import db
 
+# Email utils (safe import: will not break even if empty)
+try:
+    from email_utils import send_book_available_notification
+except:
+    def send_book_available_notification(*args, **kwargs):
+        pass
+
 
 class BorrowManagementWindow:
     def __init__(self, master, user_data=None, dashboard_root=None):
@@ -26,14 +33,13 @@ class BorrowManagementWindow:
         tk.Label(header, text=f"Logged in as: {self.user_data['first_name']} {self.user_data['last_name']}",
                  fg="white", bg="#2c3e50").pack(side="right", padx=10)
 
-        # ===== CONTROLS (Buttons + Search) =====
+        # ===== CONTROLS =====
         control_frame = tk.Frame(master, pady=10)
         control_frame.pack(fill="x")
 
         tk.Button(control_frame, text="Add Borrow Record", bg="#27ae60", fg="white",
                   command=self.borrow_dialog, width=18).pack(side="left", padx=5)
 
-        # Search bar
         tk.Label(control_frame, text="Search:", font=("Arial", 10)).pack(side="left", padx=10)
         self.search_var = tk.StringVar()
         tk.Entry(control_frame, textvariable=self.search_var, width=35).pack(side="left")
@@ -44,7 +50,7 @@ class BorrowManagementWindow:
         tk.Button(control_frame, text="Refresh", bg="#1abc9c", fg="white",
                   command=self.load_records).pack(side="right", padx=10)
 
-        # ===== TABLE UI =====
+        # ===== TABLE =====
         columns = ("id", "student", "book", "borrow", "due", "status")
         self.tree = ttk.Treeview(master, columns=columns, show="headings", height=18)
         self.tree.pack(fill="both", expand=True, padx=10, pady=5)
@@ -58,8 +64,7 @@ class BorrowManagementWindow:
 
         self.load_records()
 
-
-    # ======================= Borrow Dialog =======================
+    # ================= Borrow Dialog =================
     def borrow_dialog(self):
         dialog = tk.Toplevel(self.master)
         dialog.title("Borrow Book")
@@ -67,8 +72,9 @@ class BorrowManagementWindow:
         dialog.configure(bg="#ecf0f1")
         dialog.grab_set()
 
-        # Fetch Available Books Only
-        books = db.execute_query("SELECT book_id, title FROM books WHERE quantity > 0")
+        # Fetch available books
+        books = db.execute_query("SELECT book_id, title, quantity FROM books WHERE quantity > 0")
+
         if not books:
             messagebox.showwarning("Unavailable", "No books available for borrowing.")
             dialog.destroy()
@@ -76,12 +82,18 @@ class BorrowManagementWindow:
 
         students = db.execute_query("SELECT student_id, CONCAT(first_name, ' ', last_name) AS name FROM students")
 
-        tk.Label(dialog, text="Select Student", bg="#ecf0f1", font=("Arial", 10, "bold")).pack(anchor="w", padx=20, pady=5)
-        cb_student = ttk.Combobox(dialog, values=[f"{s['student_id']} - {s['name']}" for s in students], width=35)
+        tk.Label(dialog, text="Select Student", bg="#ecf0f1",
+                 font=("Arial", 10, "bold")).pack(anchor="w", padx=20, pady=5)
+        cb_student = ttk.Combobox(dialog,
+                                  values=[f"{s['student_id']} - {s['name']}" for s in students],
+                                  width=35)
         cb_student.pack(padx=20)
 
-        tk.Label(dialog, text="Select Book", bg="#ecf0f1", font=("Arial", 10, "bold")).pack(anchor="w", padx=20, pady=10)
-        cb_book = ttk.Combobox(dialog, values=[f"{b['book_id']} - {b['title']}" for b in books], width=35)
+        tk.Label(dialog, text="Select Book", bg="#ecf0f1",
+                 font=("Arial", 10, "bold")).pack(anchor="w", padx=20, pady=10)
+        cb_book = ttk.Combobox(dialog,
+                               values=[f"{b['book_id']} - {b['title']}" for b in books],
+                               width=35)
         cb_book.pack(padx=20)
 
         def save_borrow():
@@ -92,18 +104,46 @@ class BorrowManagementWindow:
             student_id = cb_student.get().split(" - ")[0]
             book_id = cb_book.get().split(" - ")[0]
 
+            # Check if book is reserved for someone else
+            active_res = db.execute_query("""
+                SELECT r.student_id
+                FROM reservations r
+                WHERE r.book_id=%s AND r.status='Ready'
+                ORDER BY r.reservation_date ASC
+                LIMIT 1
+            """, (book_id,))
+
+            if active_res:
+                reserved_for = str(active_res[0]["student_id"])
+                if reserved_for != student_id:
+                    messagebox.showerror(
+                        "Book Reserved",
+                        "This book is reserved and ready for another student.\n"
+                        "You cannot borrow it until the reservation expires."
+                    )
+                    return
+
             borrow_date = datetime.now().date()
             due_date = borrow_date + timedelta(days=7)
 
             librarian_id = self.user_data.get("librarian_id") or self.user_data.get("id")
 
-            query = """
+            # Insert borrow
+            db.execute_query("""
                 INSERT INTO borrow_transactions(student_id, book_id, librarian_id, borrow_date, due_date, status)
                 VALUES(%s, %s, %s, %s, %s, 'Active')
-            """
+            """, (student_id, book_id, librarian_id, borrow_date, due_date))
 
-            db.execute_query(query, (student_id, book_id, librarian_id, borrow_date, due_date))
-            db.execute_query("UPDATE books SET quantity = quantity - 1 WHERE book_id = %s", (book_id,))
+            # Reduce quantity
+            db.execute_query("UPDATE books SET quantity = quantity - 1 WHERE book_id=%s", (book_id,))
+
+            # Mark reservation as completed if used
+            if active_res:
+                db.execute_query("""
+                    UPDATE reservations
+                    SET status='Completed'
+                    WHERE book_id=%s AND student_id=%s
+                """, (book_id, student_id))
 
             messagebox.showinfo("Success", "Book Borrowed Successfully!")
             dialog.destroy()
@@ -112,8 +152,7 @@ class BorrowManagementWindow:
         tk.Button(dialog, text="Save", bg="#27ae60", fg="white", width=15,
                   command=save_borrow).pack(pady=20)
 
-
-    # ======================= Load Table =======================
+    # ================= Table Loader =================
     def load_records(self):
         self.tree.delete(*self.tree.get_children())
 
@@ -133,15 +172,9 @@ class BorrowManagementWindow:
         data = db.execute_query(query)
 
         for row in data:
+            status_value = row.get("status") or row.get("borrow_status") or "Active"
 
-            # -------- Fix Empty Status --------
-            status_value = (
-                row.get("status")
-                or row.get("borrow_status")
-                or "Active"
-            )
-
-            # -------- Auto mark overdue --------
+            # Auto-mark overdue
             if status_value == "Active" and row["due_date"] < datetime.now().date():
                 status_value = "Overdue"
                 db.execute_query(
@@ -151,15 +184,12 @@ class BorrowManagementWindow:
 
             tag = "overdue" if status_value == "Overdue" else ""
 
-            self.tree.insert(
-                "", "end",
-                values=(row["transaction_id"], row["student"], row["book"],
-                        row["borrow_date"], row["due_date"], status_value),
-                tags=(tag,)
-            )
+            self.tree.insert("", "end",
+                             values=(row["transaction_id"], row["student"], row["book"],
+                                     row["borrow_date"], row["due_date"], status_value),
+                             tags=(tag,))
 
-
-    # ======================= Search =======================
+    # ================= Search =================
     def search_records(self):
         keyword = self.search_var.get().lower()
         if not keyword:
@@ -170,7 +200,7 @@ class BorrowManagementWindow:
             self.tree.delete(row)
 
         query = """
-            SELECT bt.transaction_id, 
+            SELECT bt.transaction_id,
                    CONCAT(s.first_name, ' ', s.last_name) AS student,
                    b.title AS book, bt.borrow_date, bt.due_date, bt.status
             FROM borrow_transactions bt
@@ -191,8 +221,7 @@ class BorrowManagementWindow:
                 row["borrow_date"], row["due_date"], status_value
             ), tags=(tag,))
 
-
-    # ======================= Back Navigation =======================
+    # ================= Back =================
     def go_back(self):
         self.master.destroy()
         if self.dashboard_root:

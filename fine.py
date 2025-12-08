@@ -7,37 +7,69 @@ import os
 
 
 class FineManagementWindow:
-    def __init__(self, root, user_data):
+    def __init__(self, root, user_data, dashboard_root):
         self.root = root
         self.user_data = user_data
+        self.dashboard_root = dashboard_root
 
         self.root.title("Fines Management")
         self.root.geometry("1000x600")
+        self.root.config(bg="#ecf0f1")
 
-        self.build_ui()
+        self.build_header()
+        self.build_table()
+        self.build_actions()
+
         self.load_fines()
 
-    # ------------------------ UI ------------------------
-    def build_ui(self):
-        main = tk.Frame(self.root, bg="#ecf0f1")
-        main.pack(fill=tk.BOTH, expand=True)
-
-        header = tk.Frame(main, bg="#2c3e50")
+    # ================= HEADER =================
+    def build_header(self):
+        header = tk.Frame(self.root, bg="#2c3e50", height=60)
         header.pack(fill=tk.X)
 
-        tk.Label(header, text="Fine Management",
-                 fg="white", bg="#2c3e50",
-                 font=("Arial", 16, "bold")).pack(side=tk.LEFT, padx=20)
+        # Back Button
+        tk.Button(
+            header,
+            text="← Back",
+            bg="#34495e",
+            fg="white",
+            font=("Arial", 12, "bold"),
+            command=self.go_back
+        ).pack(side=tk.LEFT, padx=10, pady=10)
 
-        # TABLE
+        # Title
+        tk.Label(
+            header,
+            text="Fine Management",
+            fg="white",
+            bg="#2c3e50",
+            font=("Arial", 18, "bold")
+        ).pack(side=tk.LEFT, padx=20)
+
+        # Librarian Name (full name)
+        full_name = f"{self.user_data.get('first_name', '')} {self.user_data.get('last_name', '')}"
+
+        tk.Label(
+            header,
+            text=f"Librarian: {full_name}",
+            fg="white",
+            bg="#2c3e50",
+            font=("Arial", 12)
+        ).pack(side=tk.RIGHT, padx=20)
+
+    # ================= TABLE =================
+    def build_table(self):
+        table_frame = tk.Frame(self.root, bg="#ecf0f1")
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 5))
+
         self.tree = ttk.Treeview(
-            main,
+            table_frame,
             columns=("fine_id", "transaction_id", "amount", "calc_date",
                      "paid_date", "status"),
             show="headings",
             height=20
         )
-        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=15)
+        self.tree.pack(fill=tk.BOTH, expand=True)
 
         headers = ["Fine ID", "Transaction ID", "Amount",
                    "Calculated", "Paid", "Status"]
@@ -45,9 +77,10 @@ class FineManagementWindow:
             self.tree.heading(c, text=t)
             self.tree.column(c, width=150, anchor=tk.CENTER)
 
-        # ACTION BUTTONS
-        actions = tk.Frame(main, bg="#ecf0f1")
-        actions.pack(pady=5)
+    # ================= ACTION BUTTONS =================
+    def build_actions(self):
+        actions = tk.Frame(self.root, bg="#ecf0f1")
+        actions.pack(pady=10)
 
         tk.Button(actions, text="Mark as PAID", bg="#27ae60", fg="white",
                   width=15, command=self.mark_paid).pack(side=tk.LEFT, padx=5)
@@ -58,7 +91,7 @@ class FineManagementWindow:
         tk.Button(actions, text="Generate Receipt", bg="#2980b9", fg="white",
                   width=18, command=self.generate_receipt).pack(side=tk.LEFT, padx=5)
 
-    # ------------------------ LOAD FINES ------------------------
+    # ================= LOAD FINES =================
     def load_fines(self):
         self.tree.delete(*self.tree.get_children())
 
@@ -82,7 +115,7 @@ class FineManagementWindow:
                 r["payment_status"]
             ))
 
-    # ------------------------ HELPERS ------------------------
+    # ================= HELPERS =================
     def get_selected(self):
         sel = self.tree.selection()
         if not sel:
@@ -90,7 +123,7 @@ class FineManagementWindow:
             return None
         return self.tree.item(sel)["values"]
 
-    # ------------------------ ACTIONS ------------------------
+    # ================= ACTIONS =================
     def mark_paid(self):
         values = self.get_selected()
         if not values:
@@ -121,7 +154,7 @@ class FineManagementWindow:
         messagebox.showinfo("Success", "Fine has been waived.")
         self.load_fines()
 
-    # ------------------------ RECEIPT (PDF) ------------------------
+    # ================= PDF RECEIPT =================
     def generate_receipt(self):
         values = self.get_selected()
         if not values:
@@ -129,13 +162,11 @@ class FineManagementWindow:
 
         fine_id, trans_id, amount, calc_date, paid_date, status = values
 
-        # Directory for receipts
         save_dir = "D:/IT5_Screenshots/Receipts"
         os.makedirs(save_dir, exist_ok=True)
 
         file_path = f"{save_dir}/fine_receipt_{fine_id}.pdf"
 
-        # Create PDF
         c = canvas.Canvas(file_path)
         c.setFont("Helvetica", 12)
 
@@ -163,3 +194,8 @@ class FineManagementWindow:
         c.save()
 
         messagebox.showinfo("Receipt Saved", f"PDF saved to:\n{file_path}")
+
+    # ================= BACK BUTTON =================
+    def go_back(self):
+        self.root.destroy()
+        self.dashboard_root.deiconify()

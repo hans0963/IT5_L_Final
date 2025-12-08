@@ -52,7 +52,7 @@ class BookmanagementWindow:
         nav = tk.Frame(main, bg="#2c3e50", height=60)
         nav.pack(fill=tk.X)
 
-        tk.Button(nav, text="← Back to Dashboard", bg="#34495e", fg="white",
+        tk.Button(nav, text="← Back", bg="#34495e", fg="white",
                   command=self.go_back).pack(side=tk.LEFT, padx=20, pady=12)
 
         tk.Label(nav, text="📚 Book Management", font=("Arial", 14, "bold"),

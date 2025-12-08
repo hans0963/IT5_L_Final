@@ -55,7 +55,7 @@ class StudentManagementWindow:
         # Back button
         back_btn = tk.Button(
             nav_frame,
-            text="← Back to Dashboard",
+            text="← Back",
             font=('Arial', 11),
             bg='#34495e',
             fg='white',
