@@ -86,11 +86,12 @@ class DashboardWindow:
         # Define dashboard buttons
         buttons = [
             ("Students", self.show_student_management, '#3498db'),
-            ("Books", self.show_book_management, '#9b59b6'),  # <-- Fixed here
+            ("Books", self.show_book_management, '#9b59b6'),
             ("Borrow", self.show_borrow_management, '#e67e22'),
             ("Return", self.show_return_management, '#1abc9c'),
             ("Reservations", self.show_reservations, '#34495e'),
-            ("Fines", self.show_fines_management, '#c0392b')
+            ("Fines", self.show_fines_management, '#c0392b'),
+            ("Summary Report", self.show_summary_report, '#BAB86C')
         ]
         
         # Create buttons in grid
@@ -126,7 +127,10 @@ class DashboardWindow:
         self.root.withdraw()
 
         student_root = tk.Toplevel(self.root)
-        StudentManagementWindow(student_root, self.user_data, self.root)
+        StudentManagementWindow(student_root, self.user_data, self.root
+        )
+
+        student_root.protocol("WM_DELETE_WINDOW", lambda: [student_root.destroy(), self.root.deiconify()])
     
     def show_book_management(self):
         """Open books management window"""
@@ -134,7 +138,10 @@ class DashboardWindow:
         self.root.withdraw()
 
         books_root = tk.Toplevel(self.root)
-        BookmanagementWindow(books_root, self.user_data, self.root)
+        BookmanagementWindow(books_root, self.user_data, self.root
+        )
+
+        books_root.protocol("WM_DELETE_WINDOW", lambda: [books_root.destroy(), self.root.deiconify()])
     
     def show_borrow_management(self):
         from borrow import BorrowManagementWindow
@@ -176,8 +183,20 @@ class DashboardWindow:
         fines_root = tk.Toplevel(self.root)
         FineManagementWindow(
             fines_root,
-            self.user_data,   # contains first_name, last_name
-            self.root         # dashboard root
+            self.user_data,   
+            self.root         
         )
 
         fines_root.protocol("WM_DELETE_WINDOW", lambda: [fines_root.destroy(), self.root.deiconify()])
+
+    def show_summary_report(self):
+        from summary_report import SummaryReportWindow
+        self.root.withdraw()  
+
+        new_window = tk.Toplevel(self.root)
+        SummaryReportWindow(new_window, self.user_data, self.root)
+
+        new_window.protocol("WM_DELETE_WINDOW", lambda: [new_window.destroy(), self.root.deiconify()]
+        )
+
+

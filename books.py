@@ -55,7 +55,7 @@ class BookmanagementWindow:
         tk.Button(nav, text="← Back", bg="#34495e", fg="white",
                   command=self.go_back).pack(side=tk.LEFT, padx=20, pady=12)
 
-        tk.Label(nav, text="📚 Book Management", font=("Arial", 14, "bold"),
+        tk.Label(nav, text="Book Management", font=("Arial", 14, "bold"),
                  bg="#2c3e50", fg="white").pack(side=tk.LEFT, padx=20)
 
         tk.Label(nav, text=f"Logged in as: {self.user_data['first_name']} {self.user_data['last_name']}",
