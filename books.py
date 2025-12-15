@@ -143,9 +143,9 @@ class BookmanagementWindow:
         self.tree.delete(*self.tree.get_children())
 
         like = f"%{keyword}%"
-        query = """SELECT * FROM books WHERE title LIKE %s OR author LIKE %s OR isbn LIKE %s"""
+        query = """SELECT * FROM books WHERE title LIKE %s OR author LIKE %s OR isbn LIKE %s OR publisher LIKE %s OR category LIKE %s"""
 
-        rows = db.execute_query(query, (like, like, like))
+        rows = db.execute_query(query, (like, like, like, like, like))
 
         if rows:
             for row in rows:

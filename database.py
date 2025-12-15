@@ -1,5 +1,6 @@
 """Database connection and operations handler"""
 import mysql.connector
+from mysql.connector.locales.eng import client_error 
 from mysql.connector import Error
 from tkinter import messagebox
 
