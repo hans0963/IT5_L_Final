@@ -14,8 +14,11 @@ class EmailSender:
 
     def load_credentials(self):
         """Load Gmail credentials from credentials.json"""
+        print("Looking for credentials.json in:", os.getcwd())
+        
         if not os.path.exists(self.credentials_path):
             print("❌ ERROR: credentials.json not found.")
+
             return False
 
         try:

@@ -13,4 +13,4 @@ if __name__ == "__main__":
 
 # run the code here 
 
-# pyinstaller --onefile --windowed --hidden-import mysql.connector.plugins.mysql_native_password main.py
+# pyinstaller --onefile --windowed --hidden-import mysql.connector.plugins.mysql_native_password --hidden-import reportlab main.py
