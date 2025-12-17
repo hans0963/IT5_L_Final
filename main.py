@@ -1,16 +1,19 @@
-""" Main entry point for Library Management System """
+from Core.database import setup_database, db
+from Modules.log_in import LoginWindow
 import tkinter as tk
-from log_in import LoginWindow
 
 def main():
+    setup_database()  # only ensures tables exist, does not reset data
     root = tk.Tk()
     app = LoginWindow(root)
+
+    def on_closing():
+        db.close()
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
+    db.close()
 
 if __name__ == "__main__":
     main()
-
-
-# run the code here 
-
-# pyinstaller --onefile --windowed --hidden-import mysql.connector.plugins.mysql_native_password --hidden-import reportlab main.py
