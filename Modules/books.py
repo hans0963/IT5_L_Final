@@ -52,67 +52,102 @@ class BookmanagementWindow:
         # ---- NAV BAR ----
         nav = tk.Frame(main, bg="#2c3e50", height=60)
         nav.pack(fill=tk.X)
+        nav.pack_propagate(False)
 
-        tk.Button(nav, text="← Back", bg="#34495e", fg="white",
-                  command=self.go_back).pack(side=tk.LEFT, padx=20, pady=12)
+        tk.Button(
+            nav, text="← Back",
+            bg="#34495e", fg="white",
+            command=self.go_back
+        ).pack(side=tk.LEFT, padx=20, pady=12)
 
-        tk.Label(nav, text="Book Management", font=("Arial", 14, "bold"),
-                 bg="#2c3e50", fg="white").pack(side=tk.LEFT, padx=20)
+        tk.Label(
+            nav, text="Book Management",
+            font=("Arial", 14, "bold"),
+            bg="#2c3e50", fg="white"
+        ).pack(side=tk.LEFT, padx=20)
 
-        tk.Label(nav, text=f"Logged in as: {self.user_data['first_name']} {self.user_data['last_name']}",
-                 bg="#2c3e50", fg="white").pack(side=tk.RIGHT, padx=20)
+        tk.Label(
+            nav,
+            text=f"Logged in as: {self.user_data['first_name']} {self.user_data['last_name']}",
+            bg="#2c3e50", fg="white"
+        ).pack(side=tk.RIGHT, padx=20)
 
         # ---- CONTENT ----
-        content = tk.Frame(main, bg="#ecf0f1", padx=20, pady=20)
+        content = tk.Frame(main, bg="#ecf0f1", padx=20, pady=15)
         content.pack(fill=tk.BOTH, expand=True)
 
-        # ACTION BUTTONS
-        actions = tk.Frame(content, bg="#ecf0f1")
-        actions.pack(fill=tk.X, pady=10)
+        # ---- ACTION ROW (Buttons LEFT, Search RIGHT) ----
+        action_frame = tk.Frame(content, bg="#ecf0f1")
+        action_frame.pack(fill=tk.X, pady=(5, 8), padx=10)
 
-        tk.Button(actions, text="Add Book", width=15, bg="#27ae60", fg="white",
-                  command=self.add_book_dialog).pack(side=tk.LEFT, padx=5)
+        # LEFT: Action buttons
+        button_frame = tk.Frame(action_frame, bg="#ecf0f1")
+        button_frame.pack(side=tk.LEFT)
 
-        tk.Button(actions, text="Edit Book", width=15, bg="#f39c12", fg="white",
-                  command=self.edit_book).pack(side=tk.LEFT, padx=5)
+        tk.Button(
+            button_frame, text="Add Book",
+            width=15, bg="#27ae60", fg="white",
+            command=self.add_book_dialog
+        ).pack(side=tk.LEFT, padx=5)
 
-        tk.Button(actions, text="Delete Book", width=15, bg="#e74c3c", fg="white",
-                  command=self.delete_book).pack(side=tk.LEFT, padx=5)
+        tk.Button(
+            button_frame, text="Edit Book",
+            width=15, bg="#f39c12", fg="white",
+            command=self.edit_book
+        ).pack(side=tk.LEFT, padx=5)
 
-        tk.Button(actions, text="Refresh", width=15, bg="#3498db", fg="white",
-                  command=self.load_books).pack(side=tk.LEFT, padx=5)
+        tk.Button(
+            button_frame, text="Delete Book",
+            width=15, bg="#e74c3c", fg="white",
+            command=self.delete_book
+        ).pack(side=tk.LEFT, padx=5)
 
-        # SEARCH BAR
-        search = tk.Frame(content, bg="#ecf0f1")
-        search.pack(fill=tk.X, pady=10)
+        tk.Button(
+            button_frame, text="Refresh",
+            width=15, bg="#3498db", fg="white",
+            command=self.load_books
+        ).pack(side=tk.LEFT, padx=5)
 
-        tk.Label(search, text="Search:", bg="#ecf0f1").pack(side=tk.LEFT, padx=5)
-        self.search_entry = ttk.Entry(search, width=30)
-        self.search_entry.pack(side=tk.LEFT, padx=5)
+        # RIGHT: Search bar
+        search_frame = tk.Frame(action_frame, bg="#ecf0f1")
+        search_frame.pack(side=tk.RIGHT)
 
-        tk.Button(search, text="Search", bg="#95a5a6", fg="white",
-                  command=self.search_books).pack(side=tk.LEFT)
+        self.search_entry = ttk.Entry(search_frame, width=28)
+        self.search_entry.pack(side=tk.LEFT, padx=(0, 5))
 
-        # TABLE
-        table_frame = tk.Frame(content)
-        table_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        tk.Button(
+            search_frame, text="Search",
+            bg="#95a5a6", fg="white",
+            command=self.search_books
+        ).pack(side=tk.LEFT)
+
+        # ---- TABLE ----
+        table_frame = tk.Frame(content, bg="white")
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 8))
 
         self.tree = ttk.Treeview(
             table_frame,
             columns=("isbn", "title", "author", "publisher", "year", "category",
-                     "location", "qty", "status", "added", "created"),
+                    "location", "qty", "status", "added", "created"),
             show="headings"
         )
         self.tree.pack(fill=tk.BOTH, expand=True)
 
-        headers = ["ISBN", "Title", "Author", "Publisher", "Year",
-                   "Category", "Location", "Qty", "Status", "Added", "Created"]
+        headers = [
+            "ISBN", "Title", "Author", "Publisher", "Year",
+            "Category", "Location", "Qty", "Status", "Added", "Created"
+        ]
+
         for col, text in zip(self.tree["columns"], headers):
             self.tree.heading(col, text=text)
-            self.tree.column(col, width=120)
+            self.tree.column(col, width=120, anchor=tk.W)
 
-        self.status_label = tk.Label(content, text="Ready", bg="#ecf0f1")
-        self.status_label.pack(fill=tk.X)
+        # ---- STATUS BAR ----
+        self.status_label = tk.Label(
+            content, text="Ready",
+            bg="#ecf0f1", fg="#7f8c8d", anchor=tk.W
+        )
+        self.status_label.pack(fill=tk.X, pady=5)
 
         self.load_books()
 

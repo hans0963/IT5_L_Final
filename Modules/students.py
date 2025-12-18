@@ -45,39 +45,32 @@ class StudentManagementWindow:
     def show_student_management(self):
         """Display student management page"""
         self.clear_frame()
-        
+
         # Main frame
         main_frame = tk.Frame(self.root, bg='#ecf0f1')
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
+
         # Top navigation bar
         nav_frame = tk.Frame(main_frame, bg='#2c3e50', height=60)
         nav_frame.pack(fill=tk.X)
         nav_frame.pack_propagate(False)
-        
-        # Back button
+
         back_btn = tk.Button(
-            nav_frame,
-            text="← Back",
+            nav_frame, text="← Back",
             font=('Arial', 11),
-            bg='#34495e',
-            fg='white',
+            bg='#34495e', fg='white',
             cursor='hand2',
             command=self.go_back
         )
         back_btn.pack(side=tk.LEFT, padx=20, pady=15)
-        
-        # Title
+
         title_label = tk.Label(
-            nav_frame,
-            text="Student Management",
+            nav_frame, text="Student Management",
             font=('Arial', 16, 'bold'),
-            bg='#2c3e50',
-            fg='white'
+            bg='#2c3e50', fg='white'
         )
         title_label.pack(side=tk.LEFT, padx=20)
-        
-        # User info
+
         user_label = tk.Label(
             nav_frame,
             text=f"Logged in: {self.user_data['first_name']} {self.user_data['last_name']}",
@@ -86,99 +79,79 @@ class StudentManagementWindow:
             fg='#ecf0f1'
         )
         user_label.pack(side=tk.RIGHT, padx=20)
-        
+
         # Content frame
-        content_frame = tk.Frame(main_frame, bg='#ecf0f1', padx=20, pady=20)
+        content_frame = tk.Frame(main_frame, bg='#ecf0f1', padx=20, pady=15)
         content_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Button frame
-        button_frame = tk.Frame(content_frame, bg='#ecf0f1')
-        button_frame.pack(fill=tk.X, pady=10)
-        
-        add_btn = tk.Button(
-            button_frame,
-            text="Add Student",
+
+        # Action row (buttons left, search right)
+        action_frame = tk.Frame(content_frame, bg='#ecf0f1')
+        action_frame.pack(fill=tk.X, pady=(5, 8), padx=10)
+
+        # Buttons (LEFT)
+        button_frame = tk.Frame(action_frame, bg='#ecf0f1')
+        button_frame.pack(side=tk.LEFT)
+
+        tk.Button(
+            button_frame, text="Add Student",
             font=('Arial', 10, 'bold'),
-            bg='#27ae60',
-            fg='white',
-            cursor='hand2',
-            width=15,
+            bg='#27ae60', fg='white',
+            cursor='hand2', width=15,
             command=self.add_student_dialog
-        )
-        add_btn.pack(side=tk.LEFT, padx=5)
-        
-        edit_btn = tk.Button(
-            button_frame,
-            text="Edit Student",
-            font=('Arial', 10, 'bold'),
-            bg='#f39c12',
-            fg='white',
-            cursor='hand2',
-            width=15,
-            command=self.edit_student
-        )
-        edit_btn.pack(side=tk.LEFT, padx=5)
-        
-        delete_btn = tk.Button(
-            button_frame,
-            text="Delete Student",
-            font=('Arial', 10, 'bold'),
-            bg='#e74c3c',
-            fg='white',
-            cursor='hand2',
-            width=15,
-            command=self.delete_student
-        )
-        delete_btn.pack(side=tk.LEFT, padx=5)
-        
-        refresh_btn = tk.Button(
-            button_frame,
-            text="Refresh",
-            font=('Arial', 10, 'bold'),
-            bg='#3498db',
-            fg='white',
-            cursor='hand2',
-            width=15,
-            command=self.load_students
-        )
-        refresh_btn.pack(side=tk.LEFT, padx=5)
-        
-        # Search frame
-        search_frame = tk.Frame(content_frame, bg='#ecf0f1')
-        search_frame.pack(fill=tk.X, pady=10)
-        
-        tk.Label(
-            search_frame,
-            text="Search:",
-            font=('Arial', 10),
-            bg='#ecf0f1'
         ).pack(side=tk.LEFT, padx=5)
-        
-        self.search_entry = ttk.Entry(search_frame, font=('Arial', 10), width=30)
-        self.search_entry.pack(side=tk.LEFT, padx=5)
-        
-        search_btn = tk.Button(
-            search_frame,
-            text=" Search",
-            font=('Arial', 10),
+
+        tk.Button(
+            button_frame, text="Edit Student",
+            font=('Arial', 10, 'bold'),
+            bg='#f39c12', fg='white',
+            cursor='hand2', width=15,
+            command=self.edit_student
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame, text="Delete Student",
+            font=('Arial', 10, 'bold'),
+            bg='#e74c3c', fg='white',
+            cursor='hand2', width=15,
+            command=self.delete_student
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame, text="Refresh",
+            font=('Arial', 10, 'bold'),
+            bg='#3498db', fg='white',
+            cursor='hand2', width=15,
+            command=self.load_students
+        ).pack(side=tk.LEFT, padx=5)
+
+        # Search (RIGHT)
+        search_frame = tk.Frame(action_frame, bg='#ecf0f1')
+        search_frame.pack(side=tk.RIGHT)
+
+        self.search_entry = ttk.Entry(search_frame, font=('Arial', 10), width=28)
+        self.search_entry.pack(side=tk.LEFT, padx=(0, 5))
+
+        tk.Button(
+            search_frame, text="Search",
+            font=('Arial', 10, 'bold'),
             bg='#95a5a6',
             fg='white',
             cursor='hand2',
+            relief='flat',
             command=self.search_students
-        )
-        search_btn.pack(side=tk.LEFT, padx=5)
-        
-        # Table frame
+        ).pack(side=tk.LEFT)
+
+        # Table frame (closer to buttons)
         table_frame = tk.Frame(content_frame, bg='white')
-        table_frame.pack(fill=tk.BOTH, expand=True, pady=10)
-        
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 8))
+
         # Scrollbars
         vsb = ttk.Scrollbar(table_frame, orient=tk.VERTICAL)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
-        
+
         hsb = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL)
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
-        
+
         # Treeview
         self.tree = ttk.Treeview(
             table_frame,
@@ -187,11 +160,10 @@ class StudentManagementWindow:
             yscrollcommand=vsb.set,
             xscrollcommand=hsb.set
         )
-        
+
         vsb.config(command=self.tree.yview)
         hsb.config(command=self.tree.xview)
-        
-        # Define columns
+
         self.tree.column('#0', width=0, stretch=tk.NO)
         self.tree.column('ID', anchor=tk.CENTER, width=50)
         self.tree.column('First Name', anchor=tk.W, width=150)
@@ -200,34 +172,31 @@ class StudentManagementWindow:
         self.tree.column('Phone', anchor=tk.W, width=120)
         self.tree.column('Registration Date', anchor=tk.CENTER, width=130)
 
-        # Define headings
         self.tree.heading('ID', text='ID', anchor=tk.CENTER)
         self.tree.heading('First Name', text='First Name', anchor=tk.W)
         self.tree.heading('Last Name', text='Last Name', anchor=tk.W)
         self.tree.heading('Email', text='Email', anchor=tk.W)
         self.tree.heading('Phone', text='Phone', anchor=tk.W)
         self.tree.heading('Registration Date', text='Registration Date', anchor=tk.CENTER)
-        
-        # Add alternating row colors
+
         self.tree.tag_configure('oddrow', background='#f0f0f0')
         self.tree.tag_configure('evenrow', background='white')
-        
+
         self.tree.pack(fill=tk.BOTH, expand=True)
-        
+
         # Status bar
         status_frame = tk.Frame(content_frame, bg='#ecf0f1')
         status_frame.pack(fill=tk.X, pady=5)
-        
+
         self.status_label = tk.Label(
-            status_frame,
-            text="Ready",
+            status_frame, text="Ready",
             font=('Arial', 9),
             bg='#ecf0f1',
             fg='#7f8c8d',
             anchor=tk.W
         )
         self.status_label.pack(side=tk.LEFT)
-        
+
         # Load students
         self.load_students()
     

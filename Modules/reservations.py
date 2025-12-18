@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
-from database import db
-from email_sender import EmailSender
-from email_utils import generate_reservation_email, generate_ready_email
+from Core.database import db
+from Core.email_sender import EmailSender
+from Core.email_utils import generate_reservation_email, generate_ready_email
 
 class ReservationWindow:
     def __init__(self, root, user_data, dashboard_root):
@@ -13,7 +13,7 @@ class ReservationWindow:
 
         self.librarian_id = user_data.get("librarian_id") or user_data.get("id")
 
-        # Email handler (safe even if credentials empty)
+        # Email handler
         self.mailer = EmailSender()
 
         self.root.title("Book Reservations")
@@ -97,36 +97,41 @@ class ReservationWindow:
 
         tk.Button(actions, text="Cancel Reservation", bg="#e74c3c", fg="white",
                   command=self.cancel_reservation).pack(side=tk.LEFT, padx=5)
-
+        
     # ---------------- Load Reservations ----------------
     def load_reservations(self):
         self.tree.delete(*self.tree.get_children())
 
         query = """
-            SELECT reservation_id, b.title,
-                   CONCAT(s.first_name,' ',s.last_name) AS student,
-                   reservation_date, expires_at, r.status
+            SELECT r.reservation_id, b.title,
+                   s.first_name || ' ' || s.last_name AS student,
+                   r.reservation_date, r.expires_at, r.status
             FROM reservations r
             JOIN books b ON r.book_id = b.book_id
             JOIN students s ON r.student_id = s.student_id
             ORDER BY r.reservation_id DESC
         """
 
-        rows = db.execute_query(query)
+        rows = db.execute_query(query, fetch=True) or []
         now = datetime.now()
 
         for r in rows:
             tag = ""
 
             # auto-expire
-            if r["expires_at"] and datetime.strptime(str(r["expires_at"]), "%Y-%m-%d %H:%M:%S") < now:
-                tag = "expired"
-                if r["status"] == "Active":
-                    db.execute_query("UPDATE reservations SET status='Cancelled' WHERE reservation_id=%s",
-                                     (r["reservation_id"],))
-                    r["status"] = "Cancelled"
+            if r["expires_at"]:
+                try:
+                    exp_date = datetime.strptime(str(r["expires_at"]), "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    exp_date = datetime.strptime(str(r["expires_at"]), "%Y-%m-%d")
 
-            if r["status"] == "Ready":
+                if exp_date < now and r["status"].lower() == "active":
+                    db.execute_query("UPDATE reservations SET status='Cancelled' WHERE reservation_id=?",
+                                     (r["reservation_id"],), fetch=False)
+                    r["status"] = "Cancelled"
+                    tag = "expired"
+
+            if r["status"].lower() == "ready":
                 tag = "ready"
 
             self.tree.insert("", tk.END, tags=(tag,),
@@ -149,7 +154,7 @@ class ReservationWindow:
         for row in data:
             self.tree.insert("", "end", values=row)
 
-    # ---------------- Create Reservation ----------------
+        # ---------------- Create Reservation ----------------
     def create_reservation_dialog(self):
         dialog = tk.Toplevel(self.root)
         dialog.title("Create Reservation")
@@ -165,7 +170,8 @@ class ReservationWindow:
                 font=("Arial", 11, "bold")).pack(anchor="w", pady=(0,5))
 
         students = db.execute_query(
-            "SELECT student_id, email, CONCAT(first_name, ' ', last_name) AS name FROM students"
+            "SELECT student_id, email, first_name || ' ' || last_name AS name FROM students",
+            fetch=True
         )
         self.all_students = students
 
@@ -181,9 +187,7 @@ class ReservationWindow:
         tk.Label(container, text="Select Book:", bg="#ecf0f1",
                 font=("Arial", 11, "bold")).pack(anchor="w", pady=(10,5))
 
-        books = db.execute_query(
-            "SELECT book_id, title FROM books"
-        )
+        books = db.execute_query("SELECT book_id, title FROM books", fetch=True)
         self.all_books = books
 
         self.book_cb = ttk.Combobox(
@@ -216,17 +220,14 @@ class ReservationWindow:
         success = db.execute_query("""
             INSERT INTO reservations
             (book_id, student_id, reservation_date, status, expires_at)
-            VALUES
-            (%s, %s, NOW(), 'Active', DATE_ADD(NOW(), INTERVAL 7 DAY))
+            VALUES (?, ?, DATE('now'), 'Active', DATE('now','+7 day'))
         """, (book_id, student_id), fetch=False)
 
         if success:
-            # Send email (safe even if config empty)
             student = next(s for s in self.all_students if str(s["student_id"]) == student_id)
             book = next(b for b in self.all_books if str(b["book_id"]) == book_id)
 
             subject, body = generate_reservation_email(student["name"], book["title"])
-
             self.mailer.send_email(student["email"], subject, body)
 
             messagebox.showinfo("Success", "Reservation created successfully!")
@@ -248,16 +249,17 @@ class ReservationWindow:
         if not res_id:
             return
 
-        db.execute_query("UPDATE reservations SET status='Ready' WHERE reservation_id=%s", (res_id,))
+        db.execute_query("UPDATE reservations SET status='Ready' WHERE reservation_id=?",
+                         (res_id,), fetch=False)
 
         # Send READY email
         data = db.execute_query("""
-            SELECT s.email, CONCAT(s.first_name, ' ', s.last_name) AS name, b.title
+            SELECT s.email, s.first_name || ' ' || s.last_name AS name, b.title
             FROM reservations r
             JOIN students s ON r.student_id=s.student_id
             JOIN books b ON r.book_id=b.book_id
-            WHERE reservation_id=%s
-        """, (res_id,))
+            WHERE reservation_id=?
+        """, (res_id,), fetch=True)
 
         if data:
             student = data[0]
@@ -272,7 +274,8 @@ class ReservationWindow:
             return
 
         if messagebox.askyesno("Confirm", "Cancel this reservation?"):
-            db.execute_query("UPDATE reservations SET status='Cancelled' WHERE reservation_id=%s", (res_id,))
+            db.execute_query("UPDATE reservations SET status='Cancelled' WHERE reservation_id=?",
+                             (res_id,), fetch=False)
             self.load_reservations()
 
     def fulfill_reservation(self):
@@ -281,7 +284,8 @@ class ReservationWindow:
             return
 
         reservation = db.execute_query(
-            "SELECT student_id, book_id FROM reservations WHERE reservation_id=%s", (res_id,)
+            "SELECT student_id, book_id FROM reservations WHERE reservation_id=?",
+            (res_id,), fetch=True
         )
         if not reservation:
             messagebox.showerror("Error", "Reservation not found.")
@@ -296,11 +300,14 @@ class ReservationWindow:
 
         db.execute_query("""
             INSERT INTO borrow_transactions(student_id, book_id, librarian_id, borrow_date, due_date, status)
-            VALUES(%s, %s, %s, %s, %s, 'Active')
-        """, (student_id, book_id, librarian_id, borrow_date, due_date))
+            VALUES(?, ?, ?, ?, ?, 'Active')
+        """, (student_id, book_id, librarian_id, borrow_date, due_date), fetch=False)
 
-        db.execute_query("UPDATE books SET quantity = quantity - 1 WHERE book_id = %s", (book_id,))
-        db.execute_query("UPDATE reservations SET status='Fulfilled' WHERE reservation_id=%s", (res_id,))
+        db.execute_query("UPDATE books SET quantity = quantity - 1 WHERE book_id=?",
+                         (book_id,), fetch=False)
+        db.execute_query("UPDATE reservations SET status='Fulfilled' WHERE reservation_id=?",
+                         (res_id,), fetch=False)
 
         messagebox.showinfo("Success", "Book borrowed and reservation fulfilled!")
         self.load_reservations()
+

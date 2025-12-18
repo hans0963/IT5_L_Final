@@ -7,7 +7,9 @@ from email.mime.multipart import MIMEMultipart
 
 class EmailSender:
     def __init__(self):
-        self.credentials_path = "credentials.json"
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        
+        self.credentials_path = os.path.join(base_dir, "env", "credentials.json")
         self.email = None
         self.password = None
         self.load_credentials()

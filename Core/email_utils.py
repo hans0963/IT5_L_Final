@@ -1,4 +1,4 @@
-from email_sender import EmailSender
+from Core.email_sender import EmailSender
 
 mailer = EmailSender()
 

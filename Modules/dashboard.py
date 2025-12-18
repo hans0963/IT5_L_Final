@@ -163,7 +163,7 @@ class DashboardWindow:
         fines_root.protocol("WM_DELETE_WINDOW", lambda: [fines_root.destroy(), self.root.deiconify()])
     
     def show_summary_report(self):
-        from Features.summary_report import SummaryReportWindow
+        from Modules.summary_report import SummaryReportWindow
         self.root.withdraw()
         new_window = tk.Toplevel(self.root)
         SummaryReportWindow(new_window, self.user_data, self.root)

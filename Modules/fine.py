@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from database import db
+from Core.database import db   # adjust import path if needed
 from reportlab.pdfgen import canvas
 from datetime import datetime
 import os
@@ -100,7 +100,7 @@ class FineManagementWindow:
                    calculated_date, paid_date, payment_status
             FROM fines
             ORDER BY fine_id DESC
-        """)
+        """, fetch=True)
 
         if not rows:
             return
@@ -109,7 +109,7 @@ class FineManagementWindow:
             self.tree.insert("", tk.END, values=(
                 r["fine_id"],
                 r["transaction_id"],
-                f"Php{r['fine_amount']}",
+                f"Php {r['fine_amount']}",
                 r["calculated_date"],
                 r["paid_date"] if r["paid_date"] else "",
                 r["payment_status"]
@@ -132,9 +132,9 @@ class FineManagementWindow:
 
         db.execute_query("""
             UPDATE fines
-            SET payment_status='Paid', paid_date=CURDATE()
-            WHERE fine_id=%s
-        """, (fine_id,))
+            SET payment_status='Paid', paid_date=DATE('now')
+            WHERE fine_id=?
+        """, (fine_id,), fetch=False)
 
         messagebox.showinfo("Success", "Fine marked as PAID.")
         self.load_fines()
@@ -148,8 +148,8 @@ class FineManagementWindow:
         db.execute_query("""
             UPDATE fines
             SET payment_status='Waived', paid_date=NULL
-            WHERE fine_id=%s
-        """, (fine_id,))
+            WHERE fine_id=?
+        """, (fine_id,), fetch=False)
 
         messagebox.showinfo("Success", "Fine has been waived.")
         self.load_fines()

@@ -10,7 +10,7 @@ def init_db(load_data=True):
     cursor = conn.cursor()
     
     # Check if librarians table exists (indicator that schema was loaded)
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='librarians'")
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='LIBRARIANS'")
     tables_exist = cursor.fetchone() is not None
     
     # Load schema if tables don't exist
@@ -20,12 +20,12 @@ def init_db(load_data=True):
             cursor.executescript(f.read())
         print("✓ Database schema created.")
     
-    # Check if librarians table is empty to decide on loading sample data
-    cursor.execute("SELECT COUNT(*) FROM librarians")
+    # Check if librarians table is empty
+    cursor.execute("SELECT COUNT(*) FROM LIBRARIANS")
     librarians_count = cursor.fetchone()[0]
     
-    # Load sample data only if librarians table is empty AND tables just created
-    if load_data and librarians_count == 0 and not tables_exist and os.path.exists(DATA_PATH):
+    # Load sample data if librarians table is empty
+    if load_data and librarians_count == 0 and os.path.exists(DATA_PATH):
         print("Loading sample data...")
         with open(DATA_PATH, "r", encoding="utf-8") as f:
             cursor.executescript(f.read())

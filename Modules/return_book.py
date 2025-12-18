@@ -1,14 +1,12 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
-from database import db
+from Core.database import db  # adjust path if needed
 
-# Correct imports based on FINAL working email_utils.py
-from email_utils import (
+from Core.email_utils import (
     send_gmail_reminder,
     send_book_available_notification
 )
-
 
 class ReturnWindow:
     def __init__(self, master, librarian_data=None, dashboard_root=None):
@@ -17,7 +15,7 @@ class ReturnWindow:
         self.master.geometry("1100x550")
         self.master.config(bg="#ecf0f1")
 
-        self.librarian_data = librarian_data
+        self.librarian_data = librarian_data or {}
         self.dashboard_root = dashboard_root
 
         # ======== Header ========
@@ -30,7 +28,7 @@ class ReturnWindow:
         tk.Label(header, text="Return Books", fg="white",
                  bg="#2c3e50", font=("Arial", 15, "bold")).pack(side="left", padx=20)
 
-        tk.Label(header, text=f"Logged in as: {librarian_data['first_name']} {librarian_data['last_name']}",
+        tk.Label(header, text=f"Logged in as: {self.librarian_data.get('first_name','')} {self.librarian_data.get('last_name','')}",
                  fg="white", bg="#2c3e50", font=("Arial", 10)).pack(side="right", padx=10)
 
         # ======== Controls ========
@@ -81,9 +79,9 @@ class ReturnWindow:
         self.tree.delete(*self.tree.get_children())
 
         query = """
-            SELECT bt.transaction_id, 
-                   CONCAT(s.first_name, ' ', s.last_name) AS student,
-                   b.title, bt.borrow_date, bt.due_date, 
+            SELECT bt.transaction_id,
+                   s.first_name || ' ' || s.last_name AS student,
+                   b.title, bt.borrow_date, bt.due_date,
                    COALESCE(bt.status,'Active') AS status
             FROM borrow_transactions bt
             JOIN students s ON bt.student_id = s.student_id
@@ -92,17 +90,22 @@ class ReturnWindow:
             ORDER BY bt.transaction_id DESC
         """
 
-        data = db.execute_query(query)
+        data = db.execute_query(query, fetch=True) or []
         self.rows = []
 
         for row in data:
-            overdue = row["due_date"] < datetime.now().date()
+            try:
+                due_date_obj = datetime.strptime(str(row["due_date"]), "%Y-%m-%d").date()
+            except Exception:
+                due_date_obj = datetime.now().date()
 
-            # Auto mark overdue
+            overdue = due_date_obj < datetime.now().date()
+
             if overdue and row["status"].lower() == "active":
                 db.execute_query(
-                    "UPDATE borrow_transactions SET status='Overdue' WHERE transaction_id=%s",
-                    (row["transaction_id"],)
+                    "UPDATE borrow_transactions SET status='Overdue' WHERE transaction_id=?",
+                    (row["transaction_id"],),
+                    fetch=False
                 )
                 row["status"] = "Overdue"
 
@@ -143,33 +146,34 @@ class ReturnWindow:
         # --- Get student email ---
         student_email = db.execute_query_one(
             """
-            SELECT s.email 
+            SELECT s.email
             FROM borrow_transactions bt
             JOIN students s ON bt.student_id = s.student_id
-            WHERE bt.transaction_id=%s
+            WHERE bt.transaction_id=?
             """,
             (transaction_id,)
         )["email"]
 
-        # ============================================================
-        #                  1. LATE RETURN → FINE + EMAIL
-        # ============================================================
+        # 1. LATE RETURN → FINE + EMAIL
         if today > due_date_obj:
             days_late = (today - due_date_obj).days
             fine_amount = days_late * 5
 
             existing_fine = db.execute_query_one(
-                "SELECT fine_id FROM fines WHERE transaction_id=%s",
+                "SELECT fine_id FROM fines WHERE transaction_id=?",
                 (transaction_id,)
             )
 
             if not existing_fine:
-                db.execute_query("""
+                db.execute_query(
+                    """
                     INSERT INTO fines(transaction_id, fine_amount, calculated_date, payment_status)
-                    VALUES (%s, %s, CURDATE(), 'Unpaid')
-                """, (transaction_id, fine_amount))
+                    VALUES (?, ?, DATE('now'), 'Unpaid')
+                    """,
+                    (transaction_id, fine_amount),
+                    fetch=False
+                )
 
-                # -------- SEND EMAIL REMINDER --------
                 send_gmail_reminder(student_email, student_name, book_title, due_date)
 
                 messagebox.showinfo(
@@ -177,53 +181,59 @@ class ReturnWindow:
                     f"Book was returned late.\nDays Late: {days_late}\nFine: ₱{fine_amount:.2f}\n\nEmail reminder sent."
                 )
 
-        # ============================================================
-        #                 2. UPDATE BORROW TRANSACTION
-        # ============================================================
-        db.execute_query("""
-            UPDATE borrow_transactions 
-            SET status='Returned', return_date=CURDATE()
-            WHERE transaction_id=%s
-        """, (transaction_id,))
+        # 2. UPDATE BORROW TRANSACTION
+        db.execute_query(
+            """
+            UPDATE borrow_transactions
+            SET status='Returned', return_date=DATE('now')
+            WHERE transaction_id=?
+            """,
+            (transaction_id,),
+            fetch=False
+        )
 
-        # ============================================================
-        #                 3. UPDATE BOOK QUANTITY
-        # ============================================================
-        book = db.execute_query_one("""
-            SELECT b.book_id, b.quantity 
+        # 3. UPDATE BOOK QUANTITY
+        book = db.execute_query_one(
+            """
+            SELECT b.book_id, b.quantity
             FROM borrow_transactions bt
             JOIN books b ON bt.book_id = b.book_id
-            WHERE bt.transaction_id=%s
-        """, (transaction_id,))
+            WHERE bt.transaction_id=?
+            """,
+            (transaction_id,)
+        )
 
         book_id = book["book_id"]
 
         db.execute_query(
-            "UPDATE books SET quantity = quantity + 1 WHERE book_id=%s",
-            (book_id,)
+            "UPDATE books SET quantity = quantity + 1, status='Available' WHERE book_id=?",
+            (book_id,),
+            fetch=False
         )
 
-        # ============================================================
-        #      4. CHECK RESERVATION QUEUE → EMAIL NEXT STUDENT
-        # ============================================================
-        next_reservation = db.execute_query_one("""
-            SELECT r.reservation_id, r.student_id, s.email, 
-                   CONCAT(s.first_name, ' ', s.last_name) AS student_name
+    # 4. CHECK RESERVATION QUEUE → EMAIL NEXT STUDENT
+        next_reservation = db.execute_query_one(
+            """
+            SELECT r.reservation_id, r.student_id, s.email,
+                   s.first_name || ' ' || s.last_name AS student_name
             FROM reservations r
             JOIN students s ON r.student_id = s.student_id
-            WHERE r.book_id=%s AND r.status='Pending'
+            WHERE r.book_id=? AND r.status='Pending'
             ORDER BY r.reservation_date ASC
             LIMIT 1
-        """, (book_id,))
+            """,
+            (book_id,)
+        )
 
         if next_reservation:
             # Mark reservation as "Available"
             db.execute_query(
-                "UPDATE reservations SET status='Available' WHERE reservation_id=%s",
-                (next_reservation["reservation_id"],)
+                "UPDATE reservations SET status='Available' WHERE reservation_id=?",
+                (next_reservation["reservation_id"],),
+                fetch=False
             )
 
-            # Send email
+            # Send email notification
             send_book_available_notification(
                 next_reservation["email"],
                 next_reservation["student_name"],
@@ -235,6 +245,7 @@ class ReturnWindow:
                 f"The next student in queue has been notified:\n{next_reservation['student_name']}"
             )
 
+        # Refresh table after return
         self.load_table()
         messagebox.showinfo("Success", "Book successfully returned.")
 
@@ -250,12 +261,16 @@ class ReturnWindow:
             return
 
         db.execute_query(
-            "INSERT INTO fines(transaction_id, fine_amount, calculated_date, payment_status) VALUES(%s,300,CURDATE(),'Unpaid')",
-            (transaction_id,)
+            "INSERT INTO fines(transaction_id, fine_amount, calculated_date, payment_status) VALUES(?,300,DATE('now'),'Unpaid')",
+            (transaction_id,),
+            fetch=False
         )
 
-        db.execute_query("UPDATE borrow_transactions SET status='Lost' WHERE transaction_id=%s",
-                         (transaction_id,))
+        db.execute_query(
+            "UPDATE borrow_transactions SET status='Lost' WHERE transaction_id=?",
+            (transaction_id,),
+            fetch=False
+        )
 
         self.load_table()
         messagebox.showinfo("Recorded", "Book marked as lost.")
